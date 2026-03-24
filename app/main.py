@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -108,9 +109,10 @@ DEFAULT_CONFIG = {
     "responsive_enabled": True,
     "links_enabled": True,
     "images_enabled": True,
+    "content_enabled": True,
     "faces_enabled": True,
     "face_api_url": "https://faces.uat.argitic.com",
-    "face_api_token": "",
+    "face_api_token": os.getenv("FACE_API_TOKEN", ""),
     "max_pages": 15,
 }
 

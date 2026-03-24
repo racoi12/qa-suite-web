@@ -7,6 +7,7 @@ services:
     environment:
       - ADMIN_PASSWORD=QaSuite2026!
       - JWT_SECRET=argitic-qa-suite-jwt-secret-v1
+      - FACE_API_TOKEN=zzCZrWHDROrs-yW5LmuIqR_8kKQTQePegq1k31e8I1I
     volumes:
       - qa-data:/data
     networks:

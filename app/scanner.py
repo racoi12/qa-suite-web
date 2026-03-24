@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import time
 import traceback
 from dataclasses import dataclass, asdict
@@ -397,70 +398,299 @@ async def test_images(page: Page, url: str) -> list[TestResult]:
 
 
 async def test_faces(page: Page, url: str, api_url: str, api_token: str = "") -> list[TestResult]:
-    """Validate face images via the Face Validation API."""
+    """Validate face images via the Face Validation API.
+
+    Uses Playwright to screenshot image elements directly from the browser context,
+    handling lazy loading, authentication, and next/image srcsets correctly.
+    """
     results = []
     try:
+        # Navigate and wait for images to settle
         await page.goto(url, wait_until="networkidle", timeout=20000)
-        images = await page.evaluate("""() =>
-            Array.from(document.querySelectorAll('img'))
-                .filter(i => i.src && i.complete && i.naturalWidth > 80)
-                .map(i => ({ src: i.src, alt: i.alt || '' }))
-        """)
+        await page.wait_for_timeout(2000)
 
-        unique = list({img["src"]: img for img in images}.values())
+        # Scroll to trigger lazy loading
+        await page.evaluate("""() => {
+            return new Promise(resolve => {
+                let scrolled = 0;
+                const step = window.innerHeight * 0.6;
+                const interval = setInterval(() => {
+                    window.scrollBy(0, step);
+                    scrolled += step;
+                    if (scrolled >= document.body.scrollHeight) {
+                        window.scrollTo(0, 0);
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 200);
+            });
+        }""")
+
+        # Collect images — prioritize team/profile/hero images, skip icons and tiny images
+        images = await page.evaluate("""() => {
+            const prioritySel = [
+                '[class*="team"] img', '[class*="profile"] img',
+                '[class*="hero"] img', '[class*="doctor"] img',
+                '[class*="staff"] img', '[class*="person"] img',
+                '[data-testid*="face"] img', 'article img',
+            ];
+            const priority = [];
+            const seen = new Set();
+
+            // First: priority images (people/team)
+            for (const sel of prioritySel) {
+                for (const el of document.querySelectorAll(sel)) {
+                    const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+                    if (img && img.src && !seen.has(img.src)) {
+                        seen.add(img.src);
+                        priority.push({ src: img.src, alt: img.alt || img.getAttribute('aria-label') || '', priority: true });
+                    }
+                }
+            }
+
+            // Then: all other images that are large enough
+            for (const img of document.querySelectorAll('img')) {
+                if (img.src && !seen.has(img.src) &&
+                    (img.naturalWidth > 120 || img.naturalHeight > 120)) {
+                    seen.add(img.src);
+                    priority.push({ src: img.src, alt: img.alt || '', priority: false });
+                }
+            }
+            return priority.slice(0, 40);
+        }""")
+
         faces_found = 0
         face_scores = []
+        skipped_auth = 0
+        skipped_no_face = 0
 
-        async with httpx.AsyncClient(timeout=15) as client:
-            for img in unique[:30]:
-                try:
-                    img_resp = await client.get(img["src"])
-                    ct = img_resp.headers.get("content-type", "")
-                    if not ct.startswith("image/") or "svg" in ct or len(img_resp.content) < 5000:
-                        continue
+        headers = {}
+        if api_token:
+            headers["Authorization"] = f"Bearer {api_token}"
 
-                    headers = {}
-                    if api_token:
-                        headers["Authorization"] = f"Bearer {api_token}"
+        for img in images:
+            try:
+                # Use Playwright to screenshot the image element directly from browser context
+                # This handles next/image URLs, lazy loading, auth cookies, etc.
+                img_buffer = await page.evaluate("""async (src) => {
+                    try {
+                        const resp = await fetch(src);
+                        if (!resp.ok) return null;
+                        const blob = await resp.blob();
+                        return await blob.arrayBuffer();
+                    } catch { return null; }
+                }""", img["src"])
 
-                    files = {"file": ("image.jpg", img_resp.content, ct)}
-                    api_resp = await client.post(f"{api_url}/validate-face", files=files, headers=headers)
-                    if api_resp.status_code != 200:
-                        continue
-
-                    data = api_resp.json()
-                    if data.get("error"):
-                        continue  # No face — skip
-
-                    faces_found += 1
-                    score = data["score"]
-                    face_scores.append(score)
-                    status = "pass" if data["status"] == "PASS" else ("warn" if data["status"] == "WARN" else "fail")
-                    label = img["alt"][:50] if img["alt"] else img["src"].split("/")[-1][:50]
-
-                    issues = []
-                    m = data.get("metrics", {})
-                    if m.get("is_cut_top"):
-                        issues.append("cut at top")
-                    if m.get("is_cut_bottom"):
-                        issues.append("cut at bottom")
-                    if not m.get("is_centered"):
-                        issues.append("off-center")
-
-                    results.append(TestResult("faces", f"Face: {label}", status,
-                                              "minor" if status == "warn" else ("major" if status == "fail" else "info"),
-                                              f"Score {score} — {', '.join(issues) if issues else 'Good framing'}",
-                                              {**data, "image_url": img["src"][:200], "alt": img["alt"]}))
-                except Exception:
+                if img_buffer is None:
                     continue
 
+                import io
+                img_bytes = bytes(img_buffer)
+
+                if len(img_bytes) < 5000:
+                    continue
+
+                # Determine content type
+                ct = "image/jpeg"
+                if img["src"].endswith(".png"):
+                    ct = "image/png"
+                elif img["src"].endswith(".webp"):
+                    ct = "image/webp"
+                elif img["src"].endswith(".svg"):
+                    continue
+
+                async with httpx.AsyncClient(timeout=20) as client:
+                    files = {"file": ("face.jpg", img_bytes, ct)}
+                    api_resp = await client.post(f"{api_url}/validate-face", files=files, headers=headers)
+
+                if api_resp.status_code == 401:
+                    skipped_auth += 1
+                    continue
+                if api_resp.status_code != 200:
+                    continue
+
+                data = api_resp.json()
+                if data.get("error"):
+                    skipped_no_face += 1
+                    continue
+
+                faces_found += 1
+                score = data["score"]
+                face_scores.append(score)
+                status = data["status"].lower()
+                label = img["alt"][:50] if img["alt"] else img["src"].split("/")[-1][:40]
+
+                issues = []
+                m = data.get("metrics", {})
+                if m.get("is_cut_top"):
+                    issues.append("cut at top")
+                if m.get("is_cut_bottom"):
+                    issues.append("cut at bottom")
+                if not m.get("is_centered"):
+                    issues.append("off-center")
+
+                results.append(TestResult("faces", f"Face: {label}", status,
+                                          "minor" if status == "warn" else ("major" if status == "fail" else "info"),
+                                          f"Score {score} — {', '.join(issues) if issues else 'Good framing'}",
+                                          {**data, "image_url": img["src"][:200], "alt": img["alt"]}))
+            except Exception:
+                continue
+
         avg = sum(face_scores) / len(face_scores) if face_scores else 0
+
+        # Summary with auth warning if needed
+        summary_note = ""
+        if skipped_auth > 0:
+            summary_note = f" ({skipped_auth} skipped — auth required, set FACE_API_TOKEN)"
+
         results.append(TestResult("faces", "Face validation summary",
                                   "pass" if avg >= 0.85 else ("warn" if avg >= 0.65 else ("fail" if faces_found else "info")),
-                                  "info", f"{faces_found} faces found, avg score {avg:.2f}",
-                                  {"faces_found": faces_found, "avg_score": round(avg, 2), "images_scanned": len(unique)}))
+                                  "info",
+                                  f"{faces_found} faces found, avg score {avg:.2f}{summary_note}",
+                                  {
+                                      "faces_found": faces_found,
+                                      "avg_score": round(avg, 2),
+                                      "images_scanned": len(images),
+                                      "skipped_no_face": skipped_no_face,
+                                      "skipped_auth": skipped_auth,
+                                  }))
     except Exception as e:
         results.append(TestResult("faces", "Face scan", "fail", "critical", str(e), {}))
+    return results
+
+
+# ──────────────────────── CONTENT / COMPLIANCE ────────────────────────
+
+
+async def test_content(page: Page, url: str) -> list[TestResult]:
+    """Content completeness and compliance checks."""
+    results = []
+
+    try:
+        await page.goto(url, wait_until="networkidle", timeout=20000)
+        text = await page.evaluate("() => document.body.innerText")
+        lower_text = text.lower()
+        parsed = urlparse(url)
+
+        # Medical/contact info
+        has_contact = bool(
+            re.search(r'contact', lower_text) or
+            re.search(r'\d{3}[-.\s]\d{3}[-.\s]\d{4}', text) or
+            re.search(r'[a-z0-9.]+@[a-z]+\.[a-z]{2,}', text)
+        )
+        results.append(TestResult("content", "Contact information",
+                                  "pass" if has_contact else "fail", "major",
+                                  "Found" if has_contact else "No phone, email, or contact section",
+                                  {}))
+
+        # Terms / Privacy
+        tos_links = await page.locator('a').filter(has_text=re.compile(r'terms|tos|conditions', re.I)).count()
+        priv_links = await page.locator('a').filter(has_text=re.compile(r'privacy|policy', re.I)).count()
+        has_legal = bool(tos_links + priv_links)
+        results.append(TestResult("content", "Terms & Privacy Policy",
+                                  "pass" if has_legal else "fail", "major",
+                                  f"Found {tos_links} terms, {priv_links} privacy links" if has_legal else "No terms or privacy policy",
+                                  {"terms_links": tos_links, "privacy_links": priv_links}))
+
+        # HIPAA (medical platforms)
+        hipaa_found = 'hipaa' in lower_text
+        results.append(TestResult("content", "HIPAA compliance reference",
+                                  "pass" if hipaa_found else "warn", "major",
+                                  "Found" if hipaa_found else "HIPAA not mentioned — critical for health sites",
+                                  {}))
+
+        # Medical disclaimer
+        disclaimer_patterns = [
+            r'not a substitute for.*medical',
+            r'consult.*physician',
+            r'not medical advice',
+            r'individual results may vary',
+            r'see.*physician.*before',
+        ]
+        has_disclaimer = any(re.search(p, lower_text, re.I) for p in disclaimer_patterns)
+        results.append(TestResult("content", "Medical disclaimer",
+                                  "pass" if has_disclaimer else "warn", "major",
+                                  "Found" if has_disclaimer else "No medical disclaimer found",
+                                  {}))
+
+        # Testimonials / social proof
+        has_reviews = bool(
+            re.search(r'review|testimonial|\d+\s*stars?|rated', lower_text) or
+            await page.locator('[class*="review"], [class*="testimonial"]').count() > 0
+        )
+        results.append(TestResult("content", "Testimonials / Reviews",
+                                  "pass" if has_reviews else "warn", "minor",
+                                  "Found" if has_reviews else "No testimonials or review section",
+                                  {}))
+
+        # Doctor / clinician info
+        has_clinician = bool(
+            re.search(r'clinician|doctor|physician|md|provider', lower_text) or
+            await page.locator('a').filter(has_text=re.compile(r'team|about.*doctor', re.I)).count() > 0
+        )
+        results.append(TestResult("content", "Clinician / Doctor info",
+                                  "pass" if has_clinician else "warn", "major",
+                                  "Found" if has_clinician else "No clinical team or doctor info",
+                                  {}))
+
+        # Privacy policy page depth
+        privacy_text = ""
+        try:
+            priv_link = page.locator('a').filter(has_text=re.compile(r'privacy|policy', re.I)).first
+            if await priv_link.is_visible():
+                href = await priv_link.get_attribute('href')
+                if href:
+                    priv_resp = await page.request.get(urljoin(url, href), timeout=10000)
+                    privacy_text = (await priv_resp.text()).lower()
+        except Exception:
+            pass
+
+        if privacy_text:
+            has_privacy_content = len(privacy_text) > 200 and any(
+                k in privacy_text for k in ['collect', 'personal', 'data', 'information']
+            )
+            results.append(TestResult("content", "Privacy policy content",
+                                      "pass" if has_privacy_content else "fail", "major",
+                                      f"{len(privacy_text)} chars, covers data handling" if has_privacy_content else "Privacy policy empty or missing data handling info",
+                                      {"privacy_chars": len(privacy_text)}))
+
+        # Third-party scripts audit
+        scripts = []
+        page.on("request", lambda req: (
+            scripts.append(urlparse(req.url).hostname)
+            if req.resource_type == "script" and urlparse(req.url).hostname
+            and not urlparse(req.url).hostname.endswith(parsed.netloc)
+            else None
+        ))
+        await page.reload(wait_until="networkidle", timeout=15000)
+        unique_scripts = list({s: s for s in scripts if s and s not in ['googletagmanager.com', 'google-analytics.com', 'gtag', 'analytics']})
+        if unique_scripts:
+            results.append(TestResult("content", "Third-party scripts",
+                                      "warn", "minor",
+                                      f"{len(unique_scripts)} third-party script(s): {', '.join(unique_scripts[:5])}",
+                                      {"scripts": unique_scripts[:10]}))
+
+        # Hotjar warning
+        if any('hotjar' in s for s in scripts):
+            results.append(TestResult("content", "HOTJAR DETECTED — HIPAA RISK",
+                                      "fail", "critical",
+                                      "Hotjar session recording on a health site may violate HIPAA. Ensure PII exclusion rules are configured.",
+                                      {}))
+
+        # GLP-1 / off-label disclosure
+        if re.search(r'glp-1|ozempic|semaglutide|wegovy', lower_text):
+            has_disclosure = any(
+                re.search(p, lower_text)
+                for p in [r'off.label', r'fda.approved', r'consult.*physician', r'prescription']
+            )
+            results.append(TestResult("content", "GLP-1 / Off-label disclosure",
+                                      "pass" if has_disclosure else "fail", "critical",
+                                      "Disclosure found" if has_disclosure else "GLP-1 mentioned without FDA/off-label disclosure",
+                                      {}))
+
+    except Exception as e:
+        results.append(TestResult("content", "Content scan", "fail", "critical", str(e), {}))
+
     return results
 
 
@@ -489,6 +719,7 @@ async def run_scan(scan_id: int, url: str, config: dict):
                 ("responsive", lambda: test_responsive(page, url)),
                 ("links", lambda: test_links(page, url, config.get("max_pages", 15))),
                 ("images", lambda: test_images(page, url)),
+                ("content", lambda: test_content(page, url)),
                 ("faces", lambda: test_faces(
                     page, url,
                     config.get("face_api_url", "https://faces.uat.argitic.com"),
