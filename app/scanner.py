@@ -1,18 +1,21 @@
 """Site scanner — runs all test categories using Playwright."""
 
 import asyncio
+import base64
 import json
+import os
 import re
 import time
 import traceback
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from playwright.async_api import async_playwright, Page, Browser
 
-from database import get_db
+from database import get_db, save_artifact
 
 
 @dataclass
@@ -696,11 +699,28 @@ async def test_content(page: Page, url: str) -> list[TestResult]:
 
 # ──────────────────────── ORCHESTRATOR ────────────────────────
 
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", "/data/artifacts"))
+
+
+async def _screenshot_page(page: Page, path: Path) -> bool:
+    """Capture a full-page screenshot and return True if successful."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        await page.screenshot(path= str(path), full_page=True, type="png")
+        return True
+    except Exception:
+        return False
+
 
 async def run_scan(scan_id: int, url: str, config: dict):
     """Main scan orchestrator. Runs all enabled test modules."""
+    scan_dir = ARTIFACTS_DIR / str(scan_id)
+    video_path = scan_dir / "video.webm"
+    scan_dir.mkdir(parents=True, exist_ok=True)
+
     _update_scan(scan_id, status="running", started_at=datetime.now(timezone.utc).isoformat())
     all_results: list[TestResult] = []
+    console_logs: list[dict] = []
 
     try:
         async with async_playwright() as pw:
@@ -708,7 +728,24 @@ async def run_scan(scan_id: int, url: str, config: dict):
                 headless=True,
                 args=["--no-sandbox", "--disable-dev-shm-usage"],
             )
-            page = await browser.new_page()
+
+            # Context with video recording enabled
+            context = await browser.new_context(
+                record_video_dir=str(scan_dir),
+                record_video_size={"width": 1280, "height": 720},
+            )
+
+            # Capture all console messages
+            def on_console(msg):
+                if msg.type in ("error", "warning", "log"):
+                    console_logs.append({
+                        "type": msg.type,
+                        "text": msg.text,
+                        "location": dict(msg.location) if hasattr(msg, 'location') else {},
+                    })
+
+            page = await context.new_page()
+            page.on("console", on_console)
 
             modules = [
                 ("smoke", lambda: test_smoke(page, url)),
@@ -733,6 +770,11 @@ async def run_scan(scan_id: int, url: str, config: dict):
                     continue
 
                 _update_scan(scan_id, progress=f"Running {name}...")
+
+                # Screenshot BEFORE module runs (baseline)
+                before_path = scan_dir / f"{name}_before.png"
+                await _screenshot_page(page, before_path)
+
                 try:
                     module_results = await asyncio.wait_for(fn(), timeout=120)
                     all_results.extend(module_results)
@@ -746,7 +788,35 @@ async def run_scan(scan_id: int, url: str, config: dict):
                     all_results.append(r)
                     _save_results(scan_id, [r])
 
+                # Screenshot AFTER module runs (result state)
+                after_path = scan_dir / f"{name}_after.png"
+                await _screenshot_page(page, after_path)
+
+                # Save both screenshots as artifacts
+                for label, path in [("before", before_path), ("after", after_path)]:
+                    if path.exists():
+                        size = path.stat().st_size
+                        save_artifact(scan_id, name, f"screenshot_{label}", path.name, "image/png", size)
+
+            # Save video — get video object before closing so path finalizes
+            video = context.video
+            await context.close()
             await browser.close()
+            try:
+                video_path_str = str(await asyncio.wait_for(video.path(), timeout=10))
+                _update_scan(scan_id, video_path=video_path_str)
+            except Exception:
+                # Fallback: find any .webm file created in scan_dir
+                webm_files = list(scan_dir.glob("*.webm"))
+                if webm_files:
+                    _update_scan(scan_id, video_path=str(webm_files[0]))
+
+        # Save console logs as artifact
+        if console_logs:
+            console_path = scan_dir / "console.json"
+            console_path.write_text(json.dumps(console_logs, indent=2))
+            save_artifact(scan_id, "scan", "console", console_path.name, "application/json", console_path.stat().st_size)
+
 
         # Calculate overall score
         weights = {"critical": 10, "major": 5, "minor": 2, "info": 0}

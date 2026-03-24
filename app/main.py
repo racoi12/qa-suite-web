@@ -3,11 +3,14 @@
 import asyncio
 import json
 import os
+import shutil
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import BaseModel
 
-from database import init_db, get_db
+from database import init_db, get_db, get_artifacts
 from auth import (
     authenticate, create_jwt, verify_jwt, create_user,
     list_users, delete_user, bootstrap_admin,
@@ -18,6 +21,11 @@ app = FastAPI(title="QA Suite Web", version="1.0.0")
 
 # Background tasks tracking
 _running_tasks: dict[int, asyncio.Task] = {}
+
+# Serve artifact files (screenshots, videos, console logs)
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", "/data/artifacts"))
+ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/artifacts", StaticFiles(directory=str(ARTIFACTS_DIR)), name="artifacts")
 
 
 @app.on_event("startup")
@@ -149,11 +157,16 @@ def list_scans(request: Request):
     u = get_user(request)
     with get_db() as db:
         rows = db.execute(
-            "SELECT id, url, status, progress, score, summary, created_at, finished_at "
+            "SELECT id, url, status, progress, score, summary, video_path, created_at, finished_at "
             "FROM scans WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
             (u["sub"],),
         ).fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["video_url"] = f"/artifacts/{d['id']}/video.webm" if d.get("video_path") else ""
+        result.append(d)
+    return result
 
 
 @app.get("/api/scans/{scan_id}")
@@ -167,13 +180,20 @@ def get_scan(scan_id: int, request: Request):
             "SELECT category, test_name, status, severity, message, details FROM results WHERE scan_id = ? ORDER BY id",
             (scan_id,),
         ).fetchall()
-    return {**dict(scan), "results": [dict(r) for r in results]}
+    scan_dict = dict(scan)
+    # Include video and artifact info
+    scan_dict["video_url"] = f"/artifacts/{scan_id}/video.webm" if scan_dict.get("video_path") else ""
+    scan_dict["artifacts"] = get_artifacts(scan_id)
+    scan_dict["results"] = [dict(r) for r in results]
+    return scan_dict
 
 
 @app.delete("/api/scans/{scan_id}")
 def delete_scan(scan_id: int, request: Request):
     u = get_user(request)
     with get_db() as db:
+        db.execute("DELETE FROM artifacts WHERE scan_id = ? AND scan_id IN (SELECT id FROM scans WHERE user_id = ?)",
+                   (scan_id, u["sub"]))
         db.execute("DELETE FROM results WHERE scan_id = ? AND scan_id IN (SELECT id FROM scans WHERE user_id = ?)",
                    (scan_id, u["sub"]))
         db.execute("DELETE FROM scans WHERE id = ? AND user_id = ?", (scan_id, u["sub"]))
@@ -181,6 +201,10 @@ def delete_scan(scan_id: int, request: Request):
     task = _running_tasks.pop(scan_id, None)
     if task:
         task.cancel()
+    # Clean up artifact files
+    artifact_dir = ARTIFACTS_DIR / str(scan_id)
+    if artifact_dir.exists():
+        shutil.rmtree(artifact_dir)
     return {"ok": True}
 
 

@@ -95,6 +95,39 @@ tr:hover{background:var(--surface2)}
 .test-name{flex:1;color:var(--text2)}
 .test-msg{color:var(--text3);font-size:.75rem;max-width:350px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* Video player */
+.video-wrap{background:#000;border-radius:8px;overflow:hidden;margin-bottom:1rem;position:relative}
+.video-wrap video{width:100%;display:block;max-height:400px}
+.video-controls{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));padding:.5rem 1rem;display:flex;gap:.5rem;align-items:center}
+.video-controls button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:4px;padding:.25rem .75rem;cursor:pointer;font-size:.75rem}
+
+/* Screenshot gallery */
+.ss-gallery{display:flex;gap:.5rem;overflow-x:auto;padding:.5rem 0;flex-wrap:wrap}
+.ss-thumb{position:relative;flex-shrink:0;border-radius:6px;overflow:hidden;border:2px solid var(--border);cursor:pointer;transition:.15s}
+.ss-thumb:hover{border-color:var(--accent)}
+.ss-thumb img{height:100px;display:block}
+.ss-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);font-size:.65rem;color:#fff;text-align:center;padding:.15rem}
+.ss-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;display:none;align-items:center;justify-content:center}
+.ss-modal.open{display:flex}
+.ss-modal img{max-width:90vw;max-height:90vh;border-radius:8px}
+.ss-modal-close{position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1.2rem}
+
+/* Console logs */
+.console-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.5rem 1rem;font-size:.8rem;color:var(--text2);cursor:pointer;margin-top:.75rem;width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center}
+.console-toggle:hover{color:var(--text);border-color:var(--text2)}
+.console-body{background:#0d0d12;border:1px solid var(--border);border-radius:6px;margin-top:.5rem;max-height:300px;overflow-y:auto;display:none;font-family:'JetBrains Mono',monospace;font-size:.72rem}
+.console-body.open{display:block}
+.console-body pre{padding:.75rem;margin:0;white-space:pre-wrap;word-break:break-all}
+.console-entry{padding:.3rem .75rem;border-bottom:1px solid var(--border)}
+.console-entry:last-child{border:none}
+.console-entry.error pre{color:var(--red)}
+.console-entry.warning pre{color:var(--yellow)}
+.console-entry.log pre{color:var(--text2)}
+.console-count{background:var(--accent);color:#fff;border-radius:10px;padding:.1rem .5rem;font-size:.65rem;font-weight:700}
+
+/* Artifact bar */
+.artifact-bar{display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap}
+
 /* Toggle */
 .toggle{position:relative;width:36px;height:20px;display:inline-block}
 .toggle input{opacity:0;width:0;height:0}
@@ -348,6 +381,8 @@ function renderReport(scan, el) {
   const summary = JSON.parse(scan.summary || '{}');
   const results = (scan.results || []).map(r => ({...r, details: typeof r.details === 'string' ? JSON.parse(r.details || '{}') : r.details}));
   const scoreClass = scan.score >= 80 ? 'good' : scan.score >= 60 ? 'ok' : 'bad';
+  const artifacts = scan.artifacts || [];
+  const scanDir = '/artifacts/' + scan.id + '/';
 
   // Group by category
   const cats = {};
@@ -372,11 +407,23 @@ function renderReport(scan, el) {
     ? Math.round((new Date(scan.finished_at) - new Date(scan.started_at)) / 1000) + 's'
     : '—';
 
+  // Gather screenshots for gallery
+  const screenshots = artifacts.filter(a => a.artifact_type === 'screenshot_before' || a.artifact_type === 'screenshot_after');
+
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
       <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">&#8592; Back</button>
       <h2 style="font-size:1.1rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scan.url}</h2>
     </div>
+
+    ${scan.video_url ? `
+    <div class="video-wrap" id="videoWrap">
+      <video id="scanVideo" controls>
+        <source src="${scan.video_url}" type="video/webm">
+        Your browser does not support the video tag.
+      </video>
+    </div>` : ''}
+
     <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
       <div style="text-align:center">
         <div class="score-big ${scoreClass}">${scan.score}</div>
@@ -393,12 +440,43 @@ function renderReport(scan, el) {
         <div style="font-size:.75rem;color:var(--text3)">Duration: ${duration}</div>
       </div>
     </div>
+
+    ${screenshots.length ? `
+    <div class="card" style="margin-top:.5rem">
+      <h3>Screenshots</h3>
+      <div class="ss-gallery">
+        ${screenshots.map(ss => {
+          const [cat, when] = ss.artifact_type.split('_');
+          return `<div class="ss-thumb" onclick="openSsModal('${scanDir}${ss.filename}','${cat} ${when}')">
+            <img src="${scanDir}${ss.filename}" alt="${cat} ${when}">
+            <div class="ss-label">${catLabels[cat]||cat} — ${when}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    <div id="consoleSection" style="display:none" class="card" style="margin-top:.5rem">
+      <h3>Console Logs</h3>
+      <button class="console-toggle" onclick="toggleConsole(this)">
+        <span id="consoleToggleLabel">Show console logs</span>
+        <span class="console-count" id="consoleCount">0</span>
+      </button>
+      <div class="console-body" id="consoleBody"></div>
+    </div>
+
     <div class="cat-grid" id="catGrid"></div>
   `;
 
+  // Load console logs if available
+  const consoleArtifact = artifacts.find(a => a.artifact_type === 'console');
+  if (consoleArtifact) {
+    document.getElementById('consoleSection').style.display = 'block';
+    loadConsoleLogs(scan.id);
+  }
+
   const grid = document.getElementById('catGrid');
-  const catOrder = ['smoke','security','seo','accessibility','performance','responsive','links','images','faces'];
-  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',faces:'Face Validation'};
+  const catOrder = ['smoke','security','seo','accessibility','performance','responsive','links','images','content','faces'];
+  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',content:'Content',faces:'Face Validation'};
 
   for (const cat of catOrder) {
     if (!cats[cat]) continue;
@@ -408,6 +486,9 @@ function renderReport(scan, el) {
     const passed = tests.filter(t=>t.status==='pass').length;
     const failed = tests.filter(t=>t.status==='fail').length;
     const warned = tests.filter(t=>t.status==='warn').length;
+
+    // Screenshot thumbs for this category
+    const catScreenshots = screenshots.filter(ss => ss.category === cat);
 
     const card = document.createElement('div');
     card.className = 'cat-card';
@@ -419,6 +500,16 @@ function renderReport(scan, el) {
       <div style="font-size:.72rem;color:var(--text3);margin-top:.25rem">${passed} pass, ${warned} warn, ${failed} fail</div>
       <div class="cat-bar"><div class="cat-bar-fill" style="width:${score}%;background:${color}"></div></div>
       <div class="cat-details">
+        ${catScreenshots.length ? `
+        <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+          ${catScreenshots.map(ss => {
+            const [,when] = ss.artifact_type.split('_');
+            return `<div class="ss-thumb" style="height:70px" onclick="openSsModal('${scanDir}${ss.filename}','${catLabels[cat]||cat} ${when}')">
+              <img src="${scanDir}${ss.filename}" alt="${cat} ${when}">
+              <div class="ss-label">${when}</div>
+            </div>`;
+          }).join('')}
+        </div>` : ''}
         ${tests.map(t => {
           const icon = t.status==='pass'?'&#10003;':t.status==='fail'?'&#10007;':t.status==='warn'?'&#9888;':'&#8505;';
           const clr = t.status==='pass'?'var(--green)':t.status==='fail'?'var(--red)':t.status==='warn'?'var(--yellow)':'var(--text3)';
@@ -432,12 +523,50 @@ function renderReport(scan, el) {
       </div>
     `;
     card.addEventListener('click', function(e) {
-      if (this.classList.contains('expanded')) { if (e.target.closest('.test-row')) return; this.classList.remove('expanded'); }
+      if (this.classList.contains('expanded')) { if (e.target.closest('.test-row') || e.target.closest('.ss-thumb')) return; this.classList.remove('expanded'); }
       else { document.querySelectorAll('.cat-card.expanded').forEach(c=>c.classList.remove('expanded')); this.classList.add('expanded'); }
     });
     grid.appendChild(card);
   }
 }
+
+async function loadConsoleLogs(scanId) {
+  try {
+    const resp = await fetch('/artifacts/' + scanId + '/console.json');
+    if (!resp.ok) return;
+    const logs = await resp.json();
+    const errCount = logs.filter(l => l.type === 'error').length;
+    document.getElementById('consoleCount').textContent = logs.length + (errCount ? ` (${errCount} errors)` : '');
+    document.getElementById('consoleToggleLabel').textContent = logs.length + ' message(s)';
+    const body = document.getElementById('consoleBody');
+    body.innerHTML = logs.map(l => `
+      <div class="console-entry ${l.type}">
+        <pre>[${l.type.toUpperCase()}] ${escHtml(l.text)}</pre>
+      </div>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+function toggleConsole(btn) {
+  const body = document.getElementById('consoleBody');
+  const isOpen = body.classList.toggle('open');
+  btn.querySelector('span').nextSibling.textContent = isOpen ? 'Hide console logs' : 'Show console logs';
+}
+
+let ssModal = null;
+function openSsModal(src, label) {
+  if (!ssModal) {
+    ssModal = document.createElement('div');
+    ssModal.className = 'ss-modal';
+    ssModal.innerHTML = '<button class="ss-modal-close" onclick="closeSsModal()">&#10005;</button><img id="ssModalImg"><div id="ssModalLabel" style="position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;padding:.4rem 1rem;border-radius:20px;font-size:.8rem;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>';
+    document.body.appendChild(ssModal);
+    ssModal.addEventListener('click', function(e) { if (e.target === ssModal) closeSsModal(); });
+  }
+  document.getElementById('ssModalImg').src = src;
+  document.getElementById('ssModalLabel').textContent = label;
+  ssModal.classList.add('open');
+}
+function closeSsModal() { if (ssModal) ssModal.classList.remove('open'); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── Config toggles ──
 function renderConfigToggles() {
