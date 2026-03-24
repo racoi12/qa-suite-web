@@ -164,7 +164,11 @@ def list_scans(request: Request):
     result = []
     for r in rows:
         d = dict(r)
-        d["video_url"] = f"/artifacts/{d['id']}/video.webm" if d.get("video_path") else ""
+        if d.get("video_path"):
+            filename = Path(d["video_path"]).name
+            d["video_url"] = f"/artifacts/{d['id']}/{filename}"
+        else:
+            d["video_url"] = ""
         result.append(d)
     return result
 
@@ -181,8 +185,12 @@ def get_scan(scan_id: int, request: Request):
             (scan_id,),
         ).fetchall()
     scan_dict = dict(scan)
-    # Include video and artifact info
-    scan_dict["video_url"] = f"/artifacts/{scan_id}/video.webm" if scan_dict.get("video_path") else ""
+    # Include video — use actual filename from stored path
+    if scan_dict.get("video_path"):
+        filename = Path(scan_dict["video_path"]).name
+        scan_dict["video_url"] = f"/artifacts/{scan_id}/{filename}"
+    else:
+        scan_dict["video_url"] = ""
     scan_dict["artifacts"] = get_artifacts(scan_id)
     scan_dict["results"] = [dict(r) for r in results]
     return scan_dict
