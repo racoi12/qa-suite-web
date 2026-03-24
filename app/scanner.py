@@ -798,13 +798,21 @@ async def run_scan(scan_id: int, url: str, config: dict):
                         size = path.stat().st_size
                         save_artifact(scan_id, name, f"screenshot_{label}", path.name, "image/png", size)
 
-            # Save video — get video object before closing so path finalizes
-            video = context.video
+            # Get video from the page before closing
+            page_video = page.video
+            # Close page first, then context — video is finalized after context.close()
+            await page.close()
             await context.close()
             await browser.close()
             try:
-                video_path_str = str(await asyncio.wait_for(video.path(), timeout=10))
-                _update_scan(scan_id, video_path=video_path_str)
+                if page_video:
+                    video_path_str = str(await asyncio.wait_for(page_video.path(), timeout=10))
+                    _update_scan(scan_id, video_path=video_path_str)
+                else:
+                    # Fallback: find any .webm file created in scan_dir
+                    webm_files = list(scan_dir.glob("*.webm"))
+                    if webm_files:
+                        _update_scan(scan_id, video_path=str(webm_files[0]))
             except Exception:
                 # Fallback: find any .webm file created in scan_dir
                 webm_files = list(scan_dir.glob("*.webm"))
