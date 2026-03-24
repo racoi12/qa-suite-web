@@ -410,6 +410,8 @@ function renderReport(scan, el) {
   // Gather screenshots for gallery
   const screenshots = artifacts.filter(a => a.artifact_type === 'screenshot_before' || a.artifact_type === 'screenshot_after');
 
+  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',content:'Content',faces:'Face Validation'};
+
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
       <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">&#8592; Back</button>
@@ -476,7 +478,6 @@ function renderReport(scan, el) {
 
   const grid = document.getElementById('catGrid');
   const catOrder = ['smoke','security','seo','accessibility','performance','responsive','links','images','content','faces'];
-  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',content:'Content',faces:'Face Validation'};
 
   for (const cat of catOrder) {
     if (!cats[cat]) continue;
