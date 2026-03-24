@@ -1,0 +1,28 @@
+services:
+  qa:
+    build: .
+    container_name: qa-suite
+    restart: always
+    shm_size: 256m
+    environment:
+      - ADMIN_PASSWORD=QaSuite2026!
+      - JWT_SECRET=argitic-qa-suite-jwt-secret-v1
+    volumes:
+      - qa-data:/data
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qa.entrypoints=https"
+      - "traefik.http.routers.qa.rule=Host(`qa.uat.argitic.com`)"
+      - "traefik.http.routers.qa.tls=true"
+      - "traefik.http.routers.qa.tls.certresolver=cloudflare"
+      - "traefik.http.services.qa.loadbalancer.server.port=8000"
+      - "traefik.docker.network=web"
+
+volumes:
+  qa-data:
+
+networks:
+  web:
+    external: true

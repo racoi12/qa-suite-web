@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+.env.local
+.env.production
+*.pem
+*.key
+id_rsa*
+credentials.json
+/data/
+*.egg-info/
+reports/
+test-results/
+node_modules/
+*.log

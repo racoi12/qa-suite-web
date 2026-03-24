@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Suite — Site Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080d;--surface:#101018;--surface2:#181824;--surface3:#222230;--border:#2a2a3c;--text:#e8e8f0;--text2:#8888a4;--text3:#555568;--accent:#7c6cf0;--accent2:#b4a8ff;--green:#34d399;--yellow:#fbbf24;--red:#f87171;--orange:#fb923c;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--accent2);text-decoration:none}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:1.25rem 0;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-brand{padding:0 1.25rem;margin-bottom:2rem}
+.sidebar-brand h2{font-size:1rem;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-brand small{color:var(--text3);font-size:.7rem}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.6rem 1.25rem;color:var(--text2);font-size:.85rem;cursor:pointer;transition:.15s}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--accent2);background:rgba(124,108,240,.08);border-right:2px solid var(--accent)}
+.nav-item .icon{width:18px;text-align:center;font-size:.9rem}
+.sidebar-footer{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.sidebar-footer .user-info{font-size:.75rem;color:var(--text2)}
+.sidebar-footer .user-name{font-weight:600;color:var(--text)}
+.btn-logout{background:none;border:1px solid var(--border);color:var(--text2);padding:.3rem .75rem;border-radius:6px;font-size:.7rem;cursor:pointer;margin-top:.5rem}
+.btn-logout:hover{color:var(--text);border-color:var(--text2)}
+.main{flex:1;padding:2rem;overflow-y:auto;max-height:100vh}
+.page{display:none}
+.page.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
+.card h3{font-size:.9rem;font-weight:600;color:var(--accent2);margin-bottom:.75rem}
+
+/* Forms */
+input,select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;color:var(--text);font-family:inherit;font-size:.85rem;outline:none;transition:border .2s;width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+input::placeholder{color:var(--text3)}
+label{font-size:.8rem;color:var(--text2);display:block;margin-bottom:.3rem}
+.form-row{display:flex;gap:.75rem;align-items:end;margin-bottom:.75rem}
+.form-row>*{flex:1}
+
+/* Buttons */
+.btn{padding:.55rem 1.2rem;border-radius:8px;border:none;font-size:.8rem;font-weight:600;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);color:#111}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger{background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.btn-danger:hover{background:rgba(248,113,113,.2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--text2)}
+.btn-sm{padding:.35rem .75rem;font-size:.75rem}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;color:var(--text2);font-weight:500;padding:.5rem;border-bottom:1px solid var(--border)}
+td{padding:.5rem;border-bottom:1px solid var(--border)}
+tr:hover{background:var(--surface2)}
+
+/* Badges */
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.03em}
+.badge-pass{background:rgba(52,211,153,.12);color:var(--green)}
+.badge-fail{background:rgba(248,113,113,.12);color:var(--red)}
+.badge-warn{background:rgba(251,191,36,.12);color:var(--yellow)}
+.badge-skip,.badge-info{background:rgba(136,136,164,.12);color:var(--text2)}
+.badge-running{background:rgba(124,108,240,.12);color:var(--accent2);animation:pulse 1.5s infinite}
+.badge-queued{background:rgba(136,136,164,.12);color:var(--text3)}
+@keyframes pulse{50%{opacity:.6}}
+
+/* Score */
+.score-big{font-size:3rem;font-weight:800;line-height:1}
+.score-big.good{color:var(--green)}.score-big.ok{color:var(--yellow)}.score-big.bad{color:var(--red)}
+.score-label{font-size:.75rem;color:var(--text2);margin-top:.25rem}
+
+/* Category card */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.75rem;margin-top:1rem}
+.cat-card{background:var(--surface2);border-radius:8px;padding:1rem;cursor:pointer;transition:.15s;border:1px solid transparent}
+.cat-card:hover{border-color:var(--border)}
+.cat-card.expanded{grid-column:1/-1;cursor:default}
+.cat-header{display:flex;justify-content:space-between;align-items:center}
+.cat-name{font-weight:600;font-size:.85rem;text-transform:capitalize}
+.cat-score{font-weight:700;font-size:.9rem}
+.cat-bar{height:4px;background:var(--surface3);border-radius:2px;margin-top:.5rem;overflow:hidden}
+.cat-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.cat-details{margin-top:.75rem;display:none}
+.cat-card.expanded .cat-details{display:block}
+
+/* Test row */
+.test-row{display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+.test-row:last-child{border:none}
+.test-status{width:18px;text-align:center;flex-shrink:0}
+.test-name{flex:1;color:var(--text2)}
+.test-msg{color:var(--text3);font-size:.75rem;max-width:350px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Toggle */
+.toggle{position:relative;width:36px;height:20px;display:inline-block}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--surface3);border-radius:10px;cursor:pointer;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:2px;bottom:2px;background:var(--text2);border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--accent)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(16px);background:#fff}
+
+/* Login */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2.5rem;width:360px;box-shadow:var(--shadow)}
+.login-card h2{text-align:center;margin-bottom:.25rem;font-size:1.3rem;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-card p{text-align:center;color:var(--text3);font-size:.8rem;margin-bottom:1.5rem}
+.login-card input{margin-bottom:.75rem}
+.login-card .btn{width:100%;justify-content:center;margin-top:.5rem}
+.login-error{color:var(--red);font-size:.8rem;text-align:center;margin-top:.5rem;display:none}
+
+/* Responsive */
+@media(max-width:768px){
+.sidebar{display:none}.main{padding:1rem}
+.cat-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-card">
+    <h2>QA Suite</h2>
+    <p>Site audit & quality assurance</p>
+    <input type="text" id="loginUser" placeholder="Username" autofocus>
+    <input type="password" id="loginPass" placeholder="Password">
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><h2>QA Suite</h2><small>Site Audit Platform</small></div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">&#9776;</span> Dashboard</div>
+    <div class="nav-item" data-page="reports"><span class="icon">&#128202;</span> Reports</div>
+    <div class="nav-item" data-page="config"><span class="icon">&#9881;</span> Test Config</div>
+    <div class="nav-item" data-page="admin"><span class="icon">&#128101;</span> Admin</div>
+    <div class="sidebar-footer">
+      <div class="user-info">Signed in as<br><span class="user-name" id="currentUser"></span></div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <h2 style="margin-bottom:1.25rem">New Scan</h2>
+      <div class="card">
+        <div class="form-row">
+          <div style="flex:3"><label>Website URL</label><input type="text" id="scanUrl" placeholder="https://example.com"></div>
+          <div style="flex:0"><button class="btn btn-primary" id="scanBtn" onclick="startScan()">Scan</button></div>
+        </div>
+      </div>
+      <h3 style="color:var(--text2);font-size:.85rem;margin:1.5rem 0 .75rem">Recent Scans</h3>
+      <div id="scansList"></div>
+    </div>
+
+    <!-- REPORTS (detail view) -->
+    <div id="page-reports" class="page">
+      <div id="reportContent"></div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="page-config" class="page">
+      <h2 style="margin-bottom:1.25rem">Test Configuration</h2>
+      <div class="card">
+        <h3>Toggle Test Modules</h3>
+        <p style="color:var(--text2);font-size:.82rem;margin-bottom:1rem">Enable or disable test categories for future scans.</p>
+        <div id="configToggles"></div>
+      </div>
+      <div class="card">
+        <h3>Face Validation API</h3>
+        <div class="form-row">
+          <div><label>API URL</label><input type="text" id="cfgFaceUrl" value="https://faces.uat.argitic.com"></div>
+          <div><label>API Token (optional)</label><input type="text" id="cfgFaceToken" placeholder="Leave empty if auth is off"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Link Crawler</h3>
+        <div class="form-row">
+          <div style="max-width:200px"><label>Max pages to crawl</label><input type="number" id="cfgMaxPages" value="15" min="1" max="100"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="page-admin" class="page">
+      <h2 style="margin-bottom:1.25rem">User Management</h2>
+      <div class="card">
+        <h3>Create User</h3>
+        <div class="form-row">
+          <div><label>Username</label><input type="text" id="newUsername" placeholder="username"></div>
+          <div><label>Password</label><input type="password" id="newPassword" placeholder="password"></div>
+          <div style="max-width:120px"><label>Role</label><select id="newRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+          <div style="flex:0"><button class="btn btn-primary" onclick="addUser()">Add</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Users</h3>
+        <table><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th></th></tr></thead><tbody id="usersTable"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('qa_token');
+let user = JSON.parse(localStorage.getItem('qa_user') || 'null');
+let scanConfig = {};
+let pollTimer = null;
+
+// ── Config module definitions ──
+const MODULES = [
+  {key:'smoke',label:'Smoke Tests',desc:'Site loads, HTTPS, title, JS errors'},
+  {key:'security',label:'Security Headers',desc:'HSTS, CSP, X-Frame-Options, Referrer-Policy'},
+  {key:'seo',label:'SEO Audit',desc:'Meta tags, OG, canonical, sitemap, robots.txt, h1, alt text'},
+  {key:'accessibility',label:'Accessibility',desc:'WCAG 2.1 AA via axe-core'},
+  {key:'performance',label:'Performance',desc:'Load time, FCP, CLS, resource size'},
+  {key:'responsive',label:'Responsive',desc:'Viewport overflow at 5 breakpoints'},
+  {key:'links',label:'Broken Links',desc:'Internal + external link checker'},
+  {key:'images',label:'Images',desc:'Broken images, oversized images'},
+  {key:'faces',label:'Face Validation',desc:'Face framing quality via AI (faces.uat.argitic.com)'},
+];
+
+// ── Init ──
+function init() {
+  if (token && user) { showApp(); loadScans(); }
+  else showLogin();
+  renderConfigToggles();
+  document.querySelectorAll('.nav-item').forEach(n => n.onclick = () => navigate(n.dataset.page));
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('scanUrl').addEventListener('keydown', e => { if (e.key === 'Enter') startScan(); });
+}
+
+function showLogin() { document.getElementById('loginPage').style.display='flex'; document.getElementById('appShell').style.display='none'; }
+function showApp() { document.getElementById('loginPage').style.display='none'; document.getElementById('appShell').style.display='flex'; document.getElementById('currentUser').textContent=user.username; }
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  if (page === 'admin') loadUsers();
+  if (page === 'dashboard') loadScans();
+}
+
+function logout() { localStorage.removeItem('qa_token'); localStorage.removeItem('qa_user'); token=null; user=null; showLogin(); }
+
+async function api(path, opts={}) {
+  const headers = {'Content-Type':'application/json'};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(API + path, {...opts, headers: {...headers, ...opts.headers}});
+  if (r.status === 401) { logout(); throw new Error('Session expired'); }
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.detail || 'Request failed'); }
+  return r.json();
+}
+
+// ── Auth ──
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  try {
+    const data = await api('/api/login', {method:'POST', body: JSON.stringify({username:u,password:p})});
+    token = data.token; user = data.user;
+    localStorage.setItem('qa_token', token);
+    localStorage.setItem('qa_user', JSON.stringify(user));
+    err.style.display = 'none';
+    showApp(); loadScans();
+  } catch(e) { err.textContent = e.message; err.style.display = 'block'; }
+}
+
+// ── Scans ──
+function getConfig() {
+  const cfg = {};
+  MODULES.forEach(m => {
+    const el = document.getElementById('toggle-'+m.key);
+    cfg[m.key+'_enabled'] = el ? el.checked : true;
+  });
+  cfg.face_api_url = document.getElementById('cfgFaceUrl')?.value || 'https://faces.uat.argitic.com';
+  cfg.face_api_token = document.getElementById('cfgFaceToken')?.value || '';
+  cfg.max_pages = parseInt(document.getElementById('cfgMaxPages')?.value || '15');
+  return cfg;
+}
+
+async function startScan() {
+  const url = document.getElementById('scanUrl').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true; btn.textContent = 'Starting...';
+  try {
+    await api('/api/scans', {method:'POST', body: JSON.stringify({url, config: getConfig()})});
+    document.getElementById('scanUrl').value = '';
+    loadScans();
+    startPolling();
+  } catch(e) { alert(e.message); }
+  btn.disabled = false; btn.textContent = 'Scan';
+}
+
+async function loadScans() {
+  try {
+    const scans = await api('/api/scans');
+    const el = document.getElementById('scansList');
+    if (!scans.length) { el.innerHTML = '<div style="color:var(--text3);font-size:.85rem;padding:1rem">No scans yet. Enter a URL above to start.</div>'; return; }
+    el.innerHTML = '<table><thead><tr><th>URL</th><th>Score</th><th>Status</th><th>Progress</th><th>Date</th><th></th></tr></thead><tbody>' +
+      scans.map(s => {
+        const summary = JSON.parse(s.summary || '{}');
+        const scoreClass = s.score >= 80 ? 'good' : s.score >= 60 ? 'ok' : 'bad';
+        const statusBadge = `<span class="badge badge-${s.status}">${s.status}</span>`;
+        const scoreDisplay = s.status === 'done' ? `<span style="color:var(--${scoreClass});font-weight:700">${s.score}</span>` : '—';
+        const date = new Date(s.created_at).toLocaleDateString('en', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        const actions = s.status === 'done'
+          ? `<button class="btn btn-ghost btn-sm" onclick="viewReport(${s.id})">View</button>`
+          : s.status === 'running' ? `<span style="font-size:.75rem;color:var(--text3)">${s.progress}</span>` : '';
+        return `<tr><td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.url}">${s.url}</td><td>${scoreDisplay}</td><td>${statusBadge}</td><td style="font-size:.75rem;color:var(--text3)">${s.progress||''}</td><td style="font-size:.75rem;color:var(--text3)">${date}</td><td>${actions}</td></tr>`;
+      }).join('') + '</tbody></table>';
+
+    // Auto-poll if any running
+    if (scans.some(s => s.status === 'running' || s.status === 'queued')) startPolling();
+    else stopPolling();
+  } catch(e) { console.error(e); }
+}
+
+function startPolling() { if (!pollTimer) pollTimer = setInterval(loadScans, 3000); }
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+// ── Report ──
+async function viewReport(id) {
+  navigate('reports');
+  const el = document.getElementById('reportContent');
+  el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">Loading report...</div>';
+  try {
+    const scan = await api('/api/scans/'+id);
+    renderReport(scan, el);
+  } catch(e) { el.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+function renderReport(scan, el) {
+  const summary = JSON.parse(scan.summary || '{}');
+  const results = (scan.results || []).map(r => ({...r, details: typeof r.details === 'string' ? JSON.parse(r.details || '{}') : r.details}));
+  const scoreClass = scan.score >= 80 ? 'good' : scan.score >= 60 ? 'ok' : 'bad';
+
+  // Group by category
+  const cats = {};
+  results.forEach(r => {
+    if (!cats[r.category]) cats[r.category] = [];
+    cats[r.category].push(r);
+  });
+
+  // Category scores
+  const catScores = {};
+  for (const [cat, tests] of Object.entries(cats)) {
+    const scored = tests.filter(t => t.severity !== 'info');
+    if (!scored.length) { catScores[cat] = 100; continue; }
+    const weights = {critical:10,major:5,minor:2};
+    let tw=0, lw=0;
+    scored.forEach(t => { const w=weights[t.severity]||0; tw+=w; if(t.status==='fail')lw+=w; else if(t.status==='warn')lw+=w*.5; });
+    catScores[cat] = tw ? Math.round(100*(1-lw/tw)) : 100;
+  }
+
+  const date = new Date(scan.created_at).toLocaleString();
+  const duration = scan.finished_at && scan.started_at
+    ? Math.round((new Date(scan.finished_at) - new Date(scan.started_at)) / 1000) + 's'
+    : '—';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">&#8592; Back</button>
+      <h2 style="font-size:1.1rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scan.url}</h2>
+    </div>
+    <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div class="score-big ${scoreClass}">${scan.score}</div>
+        <div class="score-label">Overall Score</div>
+      </div>
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+        <div><span style="font-size:1.5rem;font-weight:700;color:var(--green)">${summary.passed||0}</span><div class="score-label">Passed</div></div>
+        <div><span style="font-size:1.5rem;font-weight:700;color:var(--yellow)">${summary.warned||0}</span><div class="score-label">Warnings</div></div>
+        <div><span style="font-size:1.5rem;font-weight:700;color:var(--red)">${summary.failed||0}</span><div class="score-label">Failed</div></div>
+        <div><span style="font-size:1.5rem;font-weight:700;color:var(--text2)">${summary.total||0}</span><div class="score-label">Total</div></div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:.75rem;color:var(--text3)">Scanned ${date}</div>
+        <div style="font-size:.75rem;color:var(--text3)">Duration: ${duration}</div>
+      </div>
+    </div>
+    <div class="cat-grid" id="catGrid"></div>
+  `;
+
+  const grid = document.getElementById('catGrid');
+  const catOrder = ['smoke','security','seo','accessibility','performance','responsive','links','images','faces'];
+  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',faces:'Face Validation'};
+
+  for (const cat of catOrder) {
+    if (!cats[cat]) continue;
+    const tests = cats[cat];
+    const score = catScores[cat];
+    const color = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+    const passed = tests.filter(t=>t.status==='pass').length;
+    const failed = tests.filter(t=>t.status==='fail').length;
+    const warned = tests.filter(t=>t.status==='warn').length;
+
+    const card = document.createElement('div');
+    card.className = 'cat-card';
+    card.innerHTML = `
+      <div class="cat-header">
+        <span class="cat-name">${catLabels[cat]||cat}</span>
+        <span class="cat-score" style="color:${color}">${score}</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--text3);margin-top:.25rem">${passed} pass, ${warned} warn, ${failed} fail</div>
+      <div class="cat-bar"><div class="cat-bar-fill" style="width:${score}%;background:${color}"></div></div>
+      <div class="cat-details">
+        ${tests.map(t => {
+          const icon = t.status==='pass'?'&#10003;':t.status==='fail'?'&#10007;':t.status==='warn'?'&#9888;':'&#8505;';
+          const clr = t.status==='pass'?'var(--green)':t.status==='fail'?'var(--red)':t.status==='warn'?'var(--yellow)':'var(--text3)';
+          return `<div class="test-row">
+            <span class="test-status" style="color:${clr}">${icon}</span>
+            <span class="test-name">${t.test_name}</span>
+            <span class="test-msg" title="${(t.message||'').replace(/"/g,'&quot;')}">${t.message||''}</span>
+            <span class="badge badge-${t.status}">${t.status}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    card.addEventListener('click', function(e) {
+      if (this.classList.contains('expanded')) { if (e.target.closest('.test-row')) return; this.classList.remove('expanded'); }
+      else { document.querySelectorAll('.cat-card.expanded').forEach(c=>c.classList.remove('expanded')); this.classList.add('expanded'); }
+    });
+    grid.appendChild(card);
+  }
+}
+
+// ── Config toggles ──
+function renderConfigToggles() {
+  const el = document.getElementById('configToggles');
+  if (!el) return;
+  el.innerHTML = MODULES.map(m => `
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">
+      <label class="toggle"><input type="checkbox" id="toggle-${m.key}" checked><span class="toggle-slider"></span></label>
+      <div><div style="font-size:.85rem;font-weight:500">${m.label}</div><div style="font-size:.72rem;color:var(--text3)">${m.desc}</div></div>
+    </div>
+  `).join('');
+}
+
+// ── Admin ──
+async function loadUsers() {
+  if (user?.role !== 'admin') { document.getElementById('page-admin').innerHTML = '<div style="padding:2rem;color:var(--text3)">Admin access required.</div>'; return; }
+  try {
+    const users = await api('/api/users');
+    document.getElementById('usersTable').innerHTML = users.map(u => `
+      <tr><td>${u.id}</td><td>${u.username}</td><td><span class="badge badge-${u.role==='admin'?'warn':'info'}">${u.role}</span></td>
+      <td style="font-size:.75rem;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td>${u.role!=='admin'?`<button class="btn btn-danger btn-sm" onclick="removeUser(${u.id})">Delete</button>`:''}</td></tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function addUser() {
+  const u=document.getElementById('newUsername').value.trim(), p=document.getElementById('newPassword').value, r=document.getElementById('newRole').value;
+  if (!u||!p) return;
+  try {
+    await api('/api/users', {method:'POST', body: JSON.stringify({username:u,password:p,role:r})});
+    document.getElementById('newUsername').value=''; document.getElementById('newPassword').value='';
+    loadUsers();
+  } catch(e) { alert(e.message); }
+}
+
+async function removeUser(id) {
+  if (!confirm('Delete this user?')) return;
+  try { await api('/api/users/'+id, {method:'DELETE'}); loadUsers(); } catch(e) { alert(e.message); }
+}
+
+init();
+</script>
+</body>
+</html>
