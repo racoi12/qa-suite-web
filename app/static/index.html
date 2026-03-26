@@ -4,10 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Suite — Site Audit</title>
+<meta name="description" content="QA Suite — Automated site audit and quality assurance for SEO, security, accessibility, performance, and more.">
+<meta property="og:title" content="QA Suite — Site Audit">
+<meta property="og:description" content="Automated site audit and quality assurance for SEO, security, accessibility, performance, and more.">
+<meta property="og:image" content="https://qa.uat.argitic.com/og-image.svg">
+<meta property="og:url" content="https://qa.uat.argitic.com">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="QA Suite — Site Audit">
+<meta name="twitter:description" content="Automated site audit for SEO, security, accessibility, performance, and more.">
+<link rel="canonical" href="https://qa.uat.argitic.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#08080d;--surface:#101018;--surface2:#181824;--surface3:#222230;--border:#2a2a3c;--text:#e8e8f0;--text2:#8888a4;--text3:#555568;--accent:#7c6cf0;--accent2:#b4a8ff;--green:#34d399;--yellow:#fbbf24;--red:#f87171;--orange:#fb923c;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4)}
+:root{--bg:#08080d;--surface:#101018;--surface2:#181824;--surface3:#222230;--border:#2a2a3c;--text:#e8e8f0;--text2:#7777a0;--text3:#555568;--accent:#7c6cf0;--accent2:#b4a8ff;--green:#34d399;--yellow:#fbbf24;--red:#f87171;--orange:#fb923c;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4)}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 a{color:var(--accent2);text-decoration:none}
@@ -169,10 +179,12 @@ tr:hover{background:var(--surface2)}
 <!-- APP -->
 <div id="appShell" class="app" style="display:none">
   <aside class="sidebar">
-    <div class="sidebar-brand"><h2>QA Suite</h2><small>Site Audit Platform</small></div>
+    <div class="sidebar-brand"><h1 style="font-size:1rem;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.25rem">QA Suite</h1><small style="color:var(--text3);font-size:.7rem">Site Audit Platform</small></div>
     <div class="nav-item active" data-page="dashboard"><span class="icon">&#9776;</span> Dashboard</div>
     <div class="nav-item" data-page="reports"><span class="icon">&#128202;</span> Reports</div>
+    <div class="nav-item" data-page="compare"><span class="icon">&#8596;</span> Compare</div>
     <div class="nav-item" data-page="config"><span class="icon">&#9881;</span> Test Config</div>
+    <div class="nav-item" data-page="settings"><span class="icon">&#9881;</span> Settings</div>
     <div class="nav-item" data-page="admin"><span class="icon">&#128101;</span> Admin</div>
     <div class="sidebar-footer">
       <div class="user-info">Signed in as<br><span class="user-name" id="currentUser"></span></div>
@@ -186,8 +198,26 @@ tr:hover{background:var(--surface2)}
       <h2 style="margin-bottom:1.25rem">New Scan</h2>
       <div class="card">
         <div class="form-row">
-          <div style="flex:3"><label>Website URL</label><input type="text" id="scanUrl" placeholder="https://example.com"></div>
+          <div style="flex:2"><label>Scan Name (optional)</label><input type="text" id="scanName" placeholder="My site audit"></div>
           <div style="flex:0"><button class="btn btn-primary" id="scanBtn" onclick="startScan()">Scan</button></div>
+        </div>
+        <div style="margin-top:.5rem">
+          <label style="margin-bottom:.3rem">Website URL(s)</label>
+          <textarea id="scanUrls" rows="3" placeholder="https://example.com&#10;https://example.org&#10;(one URL per line for batch scan)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;color:var(--text);font-family:inherit;font-size:.85rem;width:100%;resize:vertical"></textarea>
+        </div>
+        <div style="margin-top:.75rem">
+          <label style="margin-bottom:.5rem">Browsers</label>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;color:var(--text)">
+              <input type="checkbox" id="brow-chromium" checked> Chromium
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;color:var(--text)">
+              <input type="checkbox" id="brow-firefox"> Firefox
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;color:var(--text)">
+              <input type="checkbox" id="brow-webkit"> WebKit
+            </label>
+          </div>
         </div>
       </div>
       <h3 style="color:var(--text2);font-size:.85rem;margin:1.5rem 0 .75rem">Recent Scans</h3>
@@ -197,6 +227,29 @@ tr:hover{background:var(--surface2)}
     <!-- REPORTS (detail view) -->
     <div id="page-reports" class="page">
       <div id="reportContent"></div>
+    </div>
+
+    <!-- COMPARE -->
+    <div id="page-compare" class="page">
+      <h2 style="margin-bottom:1.25rem">Compare Scans</h2>
+      <div class="card">
+        <h3>Select Scans to Compare</h3>
+        <div style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <label>Scan A</label>
+            <select id="cmpScanA" onchange="loadCompare()">
+              <option value="">— Select scan —</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label>Scan B</label>
+            <select id="cmpScanB" onchange="loadCompare()">
+              <option value="">— Select scan —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="compareContent"></div>
     </div>
 
     <!-- CONFIG -->
@@ -220,11 +273,154 @@ tr:hover{background:var(--surface2)}
           <div style="max-width:200px"><label>Max pages to crawl</label><input type="number" id="cfgMaxPages" value="15" min="1" max="100"></div>
         </div>
       </div>
+      <div class="card">
+        <h3>Recording & Artifacts</h3>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:.75rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="cfgTrace" checked> Trace Viewer (full execution trace)
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="cfgHar" checked> HAR network recording
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Network Blocking</h3>
+        <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem">Block third-party resources for cleaner testing.</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="block-ads"> Block ads &amp; ad networks
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="block-analytics"> Block analytics &amp; tracking
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="block-social"> Block social widgets
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem">
+            <input type="checkbox" id="block-chat"> Block chat widgets
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Saved Config Profiles</h3>
+        <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem">Save and reuse scan configurations.</p>
+        <div class="form-row">
+          <div style="flex:2"><label>Profile Name</label><input type="text" id="cfgProfileName" placeholder="My profile"></div>
+          <div style="flex:0;display:flex;align-items:end;gap:.5rem">
+            <button class="btn btn-primary btn-sm" onclick="saveProfile()">Save</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadProfile()">Load</button>
+          </div>
+        </div>
+        <div id="savedProfiles" style="margin-top:.75rem"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page">
+      <h2 style="margin-bottom:1.25rem">Settings</h2>
+
+      <div id="settingsTabs" style="display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="tab-apikeys" onclick="showSettingsTab('apikeys')">API Keys</button>
+        <button class="btn btn-ghost btn-sm" id="tab-webhooks" onclick="showSettingsTab('webhooks')">Webhooks</button>
+        <button class="btn btn-ghost btn-sm" id="tab-schedules" onclick="showSettingsTab('schedules')">Schedules</button>
+        <button class="btn btn-ghost btn-sm" id="tab-teams" onclick="showSettingsTab('teams')">Teams</button>
+      </div>
+
+      <!-- API Keys -->
+      <div id="settings-apikeys">
+        <div class="card">
+          <h3>Create API Key</h3>
+          <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem">Use API keys to trigger scans from CI/CD pipelines.</p>
+          <div class="form-row">
+            <div style="flex:2"><label>Key Name</label><input type="text" id="newKeyName" placeholder="Jenkins pipeline"></div>
+            <div style="flex:0"><button class="btn btn-primary btn-sm" onclick="createApiKey()">Generate Key</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Your API Keys</h3>
+          <table><thead><tr><th>Name</th><th>Created</th><th>Last Used</th><th></th></tr></thead><tbody id="apiKeysTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Webhooks -->
+      <div id="settings-webhooks" style="display:none">
+        <div class="card">
+          <h3>Add Webhook</h3>
+          <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem">Receive HTTP callbacks on scan events.</p>
+          <div class="form-row">
+            <div style="flex:2"><label>Name</label><input type="text" id="whName" placeholder="My webhook"></div>
+            <div style="flex:3"><label>URL</label><input type="text" id="whUrl" placeholder="https://example.com/webhook"></div>
+          </div>
+          <div class="form-row">
+            <div style="flex:3">
+              <label>Events</label>
+              <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.3rem">
+                <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.8rem"><input type="checkbox" class="wh-event" value="scan.complete"> scan.complete</label>
+                <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.8rem"><input type="checkbox" class="wh-event" value="scan.failed"> scan.failed</label>
+                <label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.8rem"><input type="checkbox" class="wh-event" value="scan.score_below_threshold"> score_below_threshold</label>
+              </div>
+            </div>
+            <div style="flex:0"><button class="btn btn-primary btn-sm" onclick="createWebhook()">Add</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Your Webhooks</h3>
+          <table><thead><tr><th>Name</th><th>URL</th><th>Events</th><th></th></tr></thead><tbody id="webhooksTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Schedules -->
+      <div id="settings-schedules" style="display:none">
+        <div class="card">
+          <h3>Create Schedule</h3>
+          <p style="color:var(--text2);font-size:.82rem;margin-bottom:.75rem">Automate recurring scans using cron expressions.</p>
+          <div class="form-row">
+            <div style="flex:2"><label>Name</label><input type="text" id="schedName" placeholder="Daily audit"></div>
+            <div style="flex:2"><label>URLs (one per line)</label><textarea id="schedUrls" rows="3" placeholder="https://example.com&#10;https://example.org" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;color:var(--text);font-family:inherit;font-size:.85rem;width:100%;resize:vertical"></textarea></div>
+          </div>
+          <div class="form-row">
+            <div style="flex:1"><label>Cron expression</label><input type="text" id="schedCron" value="0 9 * * *" placeholder="0 9 * * *"></div>
+            <div style="flex:0;display:flex;align-items:end;gap:.5rem">
+              <button class="btn btn-primary btn-sm" onclick="createSchedule()">Create</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Schedules</h3>
+          <table><thead><tr><th>Name</th><th>URLs</th><th>Schedule</th><th>Enabled</th><th></th></tr></thead><tbody id="schedulesTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Teams -->
+      <div id="settings-teams" style="display:none">
+        <div class="card">
+          <h3>Create Team</h3>
+          <div class="form-row">
+            <div style="flex:2"><label>Team Name</label><input type="text" id="newTeamName" placeholder="My organization"></div>
+            <div style="flex:0"><button class="btn btn-primary btn-sm" onclick="createTeam()">Create Team</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Your Teams</h3>
+          <div id="teamsList"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ADMIN -->
     <div id="page-admin" class="page">
-      <h2 style="margin-bottom:1.25rem">User Management</h2>
+      <h2 style="margin-bottom:1.25rem">Admin Panel</h2>
+
+      <!-- Storage -->
+      <div class="card">
+        <h3>Storage Usage</h3>
+        <div id="storageTableWrap" style="overflow-x:auto">
+          <table><thead><tr><th>User</th><th>Total Scans</th><th>Completed</th><th>Artifacts</th><th></th></tr></thead><tbody id="storageTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- User Management -->
       <div class="card">
         <h3>Create User</h3>
         <div class="form-row">
@@ -236,7 +432,18 @@ tr:hover{background:var(--surface2)}
       </div>
       <div class="card">
         <h3>Users</h3>
-        <table><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th></th></tr></thead><tbody id="usersTable"></tbody></table>
+        <table><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th>Password Reset</th><th></th></tr></thead><tbody id="usersTable"></tbody></table>
+      </div>
+
+      <!-- Batch Scans -->
+      <div class="card">
+        <h3>Batch Scan Management</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:.75rem">Delete all scans belonging to a batch ID.</p>
+        <div class="form-row">
+          <div><label>Batch ID</label><input type="text" id="batchToDelete" placeholder="e.g. batch_abc123"></div>
+          <div style="flex:0"><button class="btn btn-danger" onclick="deleteBatch()">Delete Batch</button></div>
+        </div>
+        <div id="batchList" style="margin-top:.75rem;font-size:.8rem;color:var(--text2)"></div>
       </div>
     </div>
 
@@ -262,6 +469,7 @@ const MODULES = [
   {key:'images',label:'Images',desc:'Broken images, oversized images'},
   {key:'content',label:'Content & Compliance',desc:'Medical disclaimers, HIPAA, contact, terms, testimonials, Hotjar'},
   {key:'faces',label:'Face Validation',desc:'Face framing quality via AI (faces.uat.argitic.com)'},
+  {key:'exposure',label:'Exposure & Auth',desc:'Open admin panels, sensitive files, IDOR, CSRF, EOL tech, form validation'},
 ];
 
 // ── Init ──
@@ -275,16 +483,9 @@ function init() {
 }
 
 function showLogin() { document.getElementById('loginPage').style.display='flex'; document.getElementById('appShell').style.display='none'; }
-function showApp() { document.getElementById('loginPage').style.display='none'; document.getElementById('appShell').style.display='flex'; document.getElementById('currentUser').textContent=user.username; }
+function showApp() { document.getElementById('loginPage').style.display='none'; document.getElementById('appShell').style.display='flex'; document.getElementById('currentUser').textContent=user.username; applyAdminNav(); }
 
-function navigate(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
-  if (page === 'admin') loadUsers();
-  if (page === 'dashboard') loadScans();
-}
+function applyAdminNav() { const adminNav = document.querySelector('.nav-item[data-page="admin"]'); if (adminNav) adminNav.style.display = user?.role === 'admin' ? '' : 'none'; }
 
 function logout() { localStorage.removeItem('qa_token'); localStorage.removeItem('qa_user'); token=null; user=null; showLogin(); }
 
@@ -322,17 +523,36 @@ function getConfig() {
   cfg.face_api_url = document.getElementById('cfgFaceUrl')?.value || 'https://faces.uat.argitic.com';
   cfg.face_api_token = document.getElementById('cfgFaceToken')?.value || '';
   cfg.max_pages = parseInt(document.getElementById('cfgMaxPages')?.value || '15');
+  // Browsers
+  const browsers = [];
+  if (document.getElementById('brow-chromium')?.checked) browsers.push('chromium');
+  if (document.getElementById('brow-firefox')?.checked) browsers.push('firefox');
+  if (document.getElementById('brow-webkit')?.checked) browsers.push('webkit');
+  cfg.browsers = browsers.length ? browsers : ['chromium'];
+  // Recording
+  cfg.trace_enabled = document.getElementById('cfgTrace')?.checked ?? true;
+  cfg.har_enabled = document.getElementById('cfgHar')?.checked ?? true;
+  // Blockers
+  cfg.blockers = {
+    ads: document.getElementById('block-ads')?.checked ?? false,
+    analytics: document.getElementById('block-analytics')?.checked ?? false,
+    social: document.getElementById('block-social')?.checked ?? false,
+    chat: document.getElementById('block-chat')?.checked ?? false,
+  };
   return cfg;
 }
 
 async function startScan() {
-  const url = document.getElementById('scanUrl').value.trim();
-  if (!url) return;
+  const urlsText = document.getElementById('scanUrls').value.trim();
+  if (!urlsText) return;
+  const urls = urlsText.split('\n').map(u => u.trim()).filter(u => u);
+  if (!urls.length) return;
+  const name = document.getElementById('scanName').value.trim();
   const btn = document.getElementById('scanBtn');
   btn.disabled = true; btn.textContent = 'Starting...';
   try {
-    await api('/api/scans', {method:'POST', body: JSON.stringify({url, config: getConfig()})});
-    document.getElementById('scanUrl').value = '';
+    await api('/api/scans', {method:'POST', body: JSON.stringify({urls, name, config: getConfig()})});
+    document.getElementById('scanUrls').value = '';
     loadScans();
     startPolling();
   } catch(e) { alert(e.message); }
@@ -344,18 +564,66 @@ async function loadScans() {
     const scans = await api('/api/scans');
     const el = document.getElementById('scansList');
     if (!scans.length) { el.innerHTML = '<div style="color:var(--text3);font-size:.85rem;padding:1rem">No scans yet. Enter a URL above to start.</div>'; return; }
-    el.innerHTML = '<table><thead><tr><th>URL</th><th>Score</th><th>Status</th><th>Progress</th><th>Date</th><th></th></tr></thead><tbody>' +
-      scans.map(s => {
-        const summary = JSON.parse(s.summary || '{}');
-        const scoreClass = s.score >= 80 ? 'good' : s.score >= 60 ? 'ok' : 'bad';
-        const statusBadge = `<span class="badge badge-${s.status}">${s.status}</span>`;
-        const scoreDisplay = s.status === 'done' ? `<span style="color:var(--${scoreClass});font-weight:700">${s.score}</span>` : '—';
-        const date = new Date(s.created_at).toLocaleDateString('en', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-        const actions = s.status === 'done'
-          ? `<button class="btn btn-ghost btn-sm" onclick="viewReport(${s.id})">View</button>`
-          : s.status === 'running' ? `<span style="font-size:.75rem;color:var(--text3)">${s.progress}</span>` : '';
-        return `<tr><td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.url}">${s.url}</td><td>${scoreDisplay}</td><td>${statusBadge}</td><td style="font-size:.75rem;color:var(--text3)">${s.progress||''}</td><td style="font-size:.75rem;color:var(--text3)">${date}</td><td>${actions}</td></tr>`;
-      }).join('') + '</tbody></table>';
+
+    // Group scans by batch_id for batch display
+    const batchGroups = {};
+    const nonBatch = [];
+    scans.forEach(s => {
+      if (s.batch_id && s.batch_id.startsWith('batch_')) {
+        batchGroups[s.batch_id] = batchGroups[s.batch_id] || [];
+        batchGroups[s.batch_id].push(s);
+      } else {
+        nonBatch.push(s);
+      }
+    });
+
+    let html = '<table><thead><tr><th>Name / URL</th><th>Score</th><th>Status</th><th>Progress</th><th>Date</th><th></th></tr></thead><tbody>';
+
+    // Render batch groups first
+    Object.entries(batchGroups).forEach(([batchId, batchScans]) => {
+      const first = batchScans[0];
+      const batchLabel = first.name || first.url;
+      const allDone = batchScans.every(s => s.status === 'done');
+      const anyRunning = batchScans.some(s => s.status === 'running' || s.status === 'queued');
+      const avgScore = allDone ? Math.round(batchScans.reduce((sum, s) => sum + (s.score || 0), 0) / batchScans.length) : null;
+      const scoreDisplay = avgScore != null ? `<span style="font-weight:700">${avgScore}</span> <span style="font-size:.7rem;color:var(--text3)">avg</span>` : '—';
+      const statusBadge = anyRunning ? '<span class="badge badge-running">running</span>' : '<span class="badge badge-pass">done</span>';
+      const date = new Date(first.created_at).toLocaleDateString('en', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      html += `<tr style="background:rgba(124,108,240,.06)">
+        <td>
+          <span style="font-size:.7rem;background:var(--accent);color:#fff;padding:.1rem .4rem;border-radius:4px;margin-right:.4rem">BATCH ${batchScans.length}</span>
+          <span style="font-weight:600;font-size:.82rem">${escHtml(batchLabel.substring(0,60))}</span>
+        </td>
+        <td>${scoreDisplay}</td>
+        <td>${statusBadge}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${anyRunning ? batchScans.filter(s=>s.status==='running').length + ' running' : 'Complete'}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${date}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="viewReport(${first.id})">View</button></td>
+      </tr>`;
+    });
+
+    // Render individual scans
+    nonBatch.forEach(s => {
+      const scoreClass = s.score >= 80 ? 'good' : s.score >= 60 ? 'ok' : 'bad';
+      const statusBadge = `<span class="badge badge-${s.status}">${s.status}</span>`;
+      const scoreDisplay = s.status === 'done' ? `<span style="color:var(--${scoreClass});font-weight:700">${s.score}</span>` : '—';
+      const date = new Date(s.created_at).toLocaleDateString('en', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      const displayName = s.name ? `<span style="font-weight:600">${escHtml(s.name.substring(0,40))}</span><br><span style="font-size:.72rem;color:var(--text3)">${escHtml(s.url)}</span>` : escHtml(s.url);
+      const actions = s.status === 'done'
+        ? `<button class="btn btn-ghost btn-sm" onclick="viewReport(${s.id})">View</button>`
+        : s.status === 'running' ? `<span style="font-size:.75rem;color:var(--text3)">${s.progress}</span>` : '';
+      html += `<tr>
+        <td style="max-width:280px;font-size:.82rem">${displayName}</td>
+        <td>${scoreDisplay}</td>
+        <td>${statusBadge}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${s.progress||''}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${date}</td>
+        <td>${actions}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
 
     // Auto-poll if any running
     if (scans.some(s => s.status === 'running' || s.status === 'queued')) startPolling();
@@ -366,6 +634,106 @@ async function loadScans() {
 function startPolling() { if (!pollTimer) pollTimer = setInterval(loadScans, 3000); }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
+// ── Compare ──
+async function loadCompareDropdown() {
+  try {
+    const scans = await api('/api/scans');
+    const done = scans.filter(s => s.status === 'done');
+    const opts = done.map(s => {
+      const label = s.name || s.url;
+      return `<option value="${s.id}">${escHtml(label.substring(0,70))} (${s.score})</option>`;
+    }).join('');
+    document.getElementById('cmpScanA').innerHTML = '<option value="">— Select scan —</option>' + opts;
+    document.getElementById('cmpScanB').innerHTML = '<option value="">— Select scan —</option>' + opts;
+    // Default: most recent 2
+    if (done.length >= 2) {
+      document.getElementById('cmpScanA').value = done[1].id;
+      document.getElementById('cmpScanB').value = done[0].id;
+      loadCompare();
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function loadCompare() {
+  const aId = document.getElementById('cmpScanA').value;
+  const bId = document.getElementById('cmpScanB').value;
+  const el = document.getElementById('compareContent');
+  if (!aId || !bId) { el.innerHTML = ''; return; }
+  try {
+    const [a, b] = await Promise.all([api('/api/scans/'+aId), api('/api/scans/'+bId)]);
+    renderCompare(a, b, el);
+  } catch(e) { el.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+function renderCompare(a, b, el) {
+  const aResults = (a.results||[]).map(r=>({...r, details: typeof r.details==='string'?JSON.parse(r.details||'{}'):r.details}));
+  const bResults = (b.results||[]).map(r=>({...r, details: typeof r.details==='string'?JSON.parse(r.details||'{}'):r.details}));
+
+  // Group by category
+  const byCat = {};
+  [...aResults, ...bResults].forEach(r => { byCat[r.category] = byCat[r.category] || {a:{}, b:{}}; });
+
+  // Build per-test comparison
+  const testMap = {};
+  aResults.forEach(r => { testMap[r.test_name] = testMap[r.test_name] || {a: null, b: null}; testMap[r.test_name].a = r; });
+  bResults.forEach(r => { testMap[r.test_name] = testMap[r.test_name] || {a: null, b: null}; testMap[r.test_name].b = r; });
+
+  const rows = Object.entries(testMap);
+  const catOrder = ['smoke','security','seo','accessibility','performance','responsive','links','images','content','faces'];
+  const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',content:'Content',faces:'Face Validation'};
+  const statusOrder = {pass:3, warn:2, fail:1, skip:0, info:0};
+
+  let tableRows = '';
+  rows.forEach(([testName, ab]) => {
+    const sa = ab.a?.status || 'skip';
+    const sb = ab.b?.status || 'skip';
+    const changed = sa !== sb;
+    const aCls = changed ? 'border-left:3px solid var(--yellow)' : '';
+    const bCls = changed ? 'border-left:3px solid var(--yellow)' : '';
+    const icon = s => s==='pass'?'&#10003;':s==='fail'?'&#10007;':s==='warn'?'&#9888;':'&#8505;';
+    const color = s => s==='pass'?'var(--green)':s==='fail'?'var(--red)':s==='warn'?'var(--yellow)':'var(--text3)';
+    tableRows += `<tr style="${changed?'background:rgba(251,191,36,.06)':''}">
+      <td style="font-size:.8rem;padding:.5rem">${changed?'<span style="font-size:.65rem;background:var(--yellow);color:#000;padding:.1rem .3rem;border-radius:3px;margin-right:.3rem">CHANGED</span>':''}${escHtml(testName)}</td>
+      <td style="text-align:center;color:${color(sa)};font-size:1.1rem" title="${sa}">${icon(sa)}</td>
+      <td style="text-align:center;color:${color(sb)};font-size:1.1rem" title="${sb}">${icon(sb)}</td>
+    </tr>`;
+  });
+
+  // Score comparison
+  const scoreA = a.score || 0, scoreB = b.score || 0;
+  const scoreDelta = Math.round(scoreB - scoreA);
+  const deltaStr = scoreDelta === 0 ? '—' : (scoreDelta > 0 ? `+${scoreDelta}` : `${scoreDelta}`);
+  const deltaColor = scoreDelta > 0 ? 'var(--green)' : scoreDelta < 0 ? 'var(--red)' : 'var(--text3)';
+
+  el.innerHTML = `
+    <div class="card" style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+      <div style="text-align:center">
+        <div style="font-size:2rem;font-weight:800">${scoreA}</div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:.25rem">${a.name||a.url}</div>
+        <div style="font-size:.7rem;color:var(--text3)">${a.id === b.id ? 'Same scan' : new Date(a.created_at).toLocaleDateString()}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:${deltaColor}">${deltaStr}</div>
+        <div style="font-size:.75rem;color:var(--text3)">score delta</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:2rem;font-weight:800">${scoreB}</div>
+        <div style="font-size:.75rem;color:var(--text3);margin-top:.25rem">${b.name||b.url}</div>
+        <div style="font-size:.7rem;color:var(--text3)">${new Date(b.created_at).toLocaleDateString()}</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Test-by-Test Comparison</h3>
+      <table style="margin-top:.75rem">
+        <thead><tr><th>Test</th><th style="text-align:center">${escHtml(a.name||a.url)}</th><th style="text-align:center">${escHtml(b.name||b.url)}</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Initialize compare dropdown when page loads
+const _origNavigate = navigate;
 // ── Report ──
 async function viewReport(id) {
   navigate('reports');
@@ -402,6 +770,19 @@ function renderReport(scan, el) {
     catScores[cat] = tw ? Math.round(100*(1-lw/tw)) : 100;
   }
 
+  // SVG score ring helper
+  const scoreRing = (score, size=56, stroke=5) => {
+    const r = (size - stroke) / 2;
+    const circ = 2 * Math.PI * r;
+    const color = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+    const filled = circ * score / 100;
+    return `<svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--surface3)" stroke-width="${stroke}"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+        stroke-dasharray="${filled} ${circ}" stroke-linecap="round"/>
+    </svg>`;
+  };
+
   const date = new Date(scan.created_at).toLocaleString();
   const duration = scan.finished_at && scan.started_at
     ? Math.round((new Date(scan.finished_at) - new Date(scan.started_at)) / 1000) + 's'
@@ -410,36 +791,60 @@ function renderReport(scan, el) {
   // Gather screenshots for gallery
   const screenshots = artifacts.filter(a => a.artifact_type === 'screenshot_before' || a.artifact_type === 'screenshot_after');
 
+  // Find trace and HAR artifacts
+  const traceArtifact = artifacts.find(a => a.artifact_type === 'trace');
+  const harArtifact = artifacts.find(a => a.artifact_type === 'har');
+  const videoArtifact = artifacts.find(a => a.artifact_type === 'video');
+
   const catLabels = {smoke:'Smoke',security:'Security',seo:'SEO',accessibility:'Accessibility',performance:'Performance',responsive:'Responsive',links:'Links',images:'Images',content:'Content',faces:'Face Validation'};
 
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
       <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">&#8592; Back</button>
       <h2 style="font-size:1.1rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scan.url}</h2>
+      ${traceArtifact ? `<a class="btn btn-ghost btn-sm" href="${scanDir}${traceArtifact.filename}" target="_blank" download>Trace.zip</a>` : ''}
+      ${harArtifact ? `<a class="btn btn-ghost btn-sm" href="${scanDir}${harArtifact.filename}" target="_blank" download>HAR</a>` : ''}
+      ${videoArtifact ? `<a class="btn btn-ghost btn-sm" href="${scanDir}${videoArtifact.filename}" target="_blank" download>Video</a>` : ''}
     </div>
 
-    ${scan.video_url ? `
+    ${videoArtifact ? `
     <div class="video-wrap" id="videoWrap">
       <video id="scanVideo" controls>
-        <source src="${scan.video_url}" type="video/webm">
+        <source src="${scanDir}${videoArtifact.filename}" type="video/webm">
         Your browser does not support the video tag.
       </video>
     </div>` : ''}
 
-    <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
-      <div style="text-align:center">
-        <div class="score-big ${scoreClass}">${scan.score}</div>
-        <div class="score-label">Overall Score</div>
+    <div class="card" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;padding:1.25rem">
+      <div style="text-align:center;flex-shrink:0">
+        ${scoreRing(scan.score, 80, 7)}
+        <div style="position:relative;top:-68px;left:0;text-align:center;pointer-events:none">
+          <div style="font-size:1.6rem;font-weight:800;line-height:1">${scan.score}</div>
+          <div style="font-size:.65rem;color:var(--text3);margin-top:2px">overall</div>
+        </div>
       </div>
-      <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
-        <div><span style="font-size:1.5rem;font-weight:700;color:var(--green)">${summary.passed||0}</span><div class="score-label">Passed</div></div>
-        <div><span style="font-size:1.5rem;font-weight:700;color:var(--yellow)">${summary.warned||0}</span><div class="score-label">Warnings</div></div>
-        <div><span style="font-size:1.5rem;font-weight:700;color:var(--red)">${summary.failed||0}</span><div class="score-label">Failed</div></div>
-        <div><span style="font-size:1.5rem;font-weight:700;color:var(--text2)">${summary.total||0}</span><div class="score-label">Total</div></div>
+      <div style="display:flex;gap:1.25rem;flex-wrap:wrap">
+        <div><span style="font-size:1.4rem;font-weight:700;color:var(--green)">${summary.passed||0}</span><div class="score-label">Passed</div></div>
+        <div><span style="font-size:1.4rem;font-weight:700;color:var(--yellow)">${summary.warned||0}</span><div class="score-label">Warnings</div></div>
+        <div><span style="font-size:1.4rem;font-weight:700;color:var(--red)">${summary.failed||0}</span><div class="score-label">Failed</div></div>
+        <div><span style="font-size:1.4rem;font-weight:700;color:var(--text2)">${summary.total||0}</span><div class="score-label">Total</div></div>
       </div>
-      <div style="margin-left:auto;text-align:right">
-        <div style="font-size:.75rem;color:var(--text3)">Scanned ${date}</div>
-        <div style="font-size:.75rem;color:var(--text3)">Duration: ${duration}</div>
+      <div style="margin-left:auto;text-align:right;flex-shrink:0">
+        <div style="font-size:.72rem;color:var(--text3)">Scanned ${date}</div>
+        <div style="font-size:.72rem;color:var(--text3)">Duration: ${duration}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:.5rem;padding:1rem 1.25rem">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        ${Object.entries(catScores).map(([cat, score]) => `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:.2rem;min-width:52px">
+            <div style="position:relative;width:48px;height:48px">
+              ${scoreRing(score, 48, 4)}
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700">${score}</div>
+            </div>
+            <div style="font-size:.65rem;color:var(--text2);text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${catLabels[cat]||cat}</div>
+          </div>`).join('')}
       </div>
     </div>
 
@@ -455,6 +860,30 @@ function renderReport(scan, el) {
           </div>`;
         }).join('')}
       </div>
+    </div>` : ''}
+
+    ${(artifacts.filter(a => a.artifact_type !== 'screenshot_before' && a.artifact_type !== 'screenshot_after' && a.artifact_type !== 'console').length) ? `
+    <div class="card" style="margin-top:.5rem">
+      <h3>Downloads</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:.4rem .5rem;color:var(--text2);font-weight:500">Type</th>
+          <th style="text-align:left;padding:.4rem .5rem;color:var(--text2);font-weight:500">Category</th>
+          <th style="text-align:left;padding:.4rem .5rem;color:var(--text2);font-weight:500">MIME</th>
+          <th style="text-align:right;padding:.4rem .5rem;color:var(--text2);font-weight:500">Size</th>
+          <th style="text-align:right;padding:.4rem .5rem;color:var(--text2);font-weight:500"></th>
+        </tr></thead>
+        <tbody>
+          ${artifacts.filter(a => a.artifact_type !== 'screenshot_before' && a.artifact_type !== 'screenshot_after' && a.artifact_type !== 'console').map(a => `
+          <tr style="border-bottom:1px solid var(--surface3)">
+            <td style="padding:.4rem .5rem"><span class="badge badge-${a.artifact_type === 'video' ? 'warn' : a.artifact_type === 'trace' ? 'info' : 'pass'}">${a.artifact_type}</span></td>
+            <td style="padding:.4rem .5rem;color:var(--text2)">${a.category}</td>
+            <td style="padding:.4rem .5rem;font-family:monospace;font-size:.75rem;color:var(--text3)">${a.content_type || '—'}</td>
+            <td style="padding:.4rem .5rem;text-align:right;color:var(--text3)">${a.size_bytes ? (a.size_bytes > 1024*1024 ? (a.size_bytes/1024/1024).toFixed(1)+'MB' : a.size_bytes > 1024 ? (a.size_bytes/1024).toFixed(0)+'KB' : a.size_bytes+'B') : '—'}</td>
+            <td style="padding:.4rem .5rem;text-align:right"><a href="${scanDir}${a.filename}" target="_blank" download class="btn btn-ghost btn-sm" style="font-size:.7rem;padding:.2rem .5rem">Download</a></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
     </div>` : ''}
 
     <div id="consoleSection" style="display:none" class="card" style="margin-top:.5rem">
@@ -582,16 +1011,89 @@ function renderConfigToggles() {
 }
 
 // ── Admin ──
-async function loadUsers() {
+async function loadAdmin() {
   if (user?.role !== 'admin') { document.getElementById('page-admin').innerHTML = '<div style="padding:2rem;color:var(--text3)">Admin access required.</div>'; return; }
+  loadUsers();
+  loadStorage();
+  loadBatchList();
+}
+
+async function loadUsers() {
   try {
     const users = await api('/api/users');
     document.getElementById('usersTable').innerHTML = users.map(u => `
-      <tr><td>${u.id}</td><td>${u.username}</td><td><span class="badge badge-${u.role==='admin'?'warn':'info'}">${u.role}</span></td>
-      <td style="font-size:.75rem;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</td>
-      <td>${u.role!=='admin'?`<button class="btn btn-danger btn-sm" onclick="removeUser(${u.id})">Delete</button>`:''}</td></tr>
+      <tr>
+        <td>${u.id}</td>
+        <td>${escHtml(u.username)}</td>
+        <td><span class="badge badge-${u.role==='admin'?'warn':'info'}">${u.role}</span></td>
+        <td style="font-size:.75rem;color:var(--text3)">${new Date(u.created_at).toLocaleDateString()}</td>
+        <td>
+          <div style="display:flex;gap:.4rem;align-items:center">
+            <input type="password" id="resetPw_${u.id}" placeholder="New password" style="width:120px;font-size:.72rem;padding:.3rem .5rem">
+            <button class="btn btn-ghost btn-sm" onclick="resetUserPassword(${u.id})">Reset</button>
+          </div>
+        </td>
+        <td>${u.role!=='admin'?`<button class="btn btn-danger btn-sm" onclick="removeUser(${u.id})">Delete</button>`:''}</td>
+      </tr>
     `).join('');
   } catch(e) { console.error(e); }
+}
+
+async function resetUserPassword(id) {
+  const pw = document.getElementById('resetPw_'+id).value;
+  if (!pw || pw.length < 4) { alert('Password must be at least 4 characters'); return; }
+  if (!confirm('Reset this user\'s password?')) return;
+  try {
+    await api('/api/users/'+id+'/password', {method:'PUT', body: JSON.stringify({password:pw})});
+    document.getElementById('resetPw_'+id).value = '';
+    alert('Password updated');
+  } catch(e) { alert(e.message); }
+}
+
+async function loadStorage() {
+  try {
+    const stats = await api('/api/storage');
+    document.getElementById('storageTable').innerHTML = stats.map(s => `
+      <tr>
+        <td>${escHtml(s.username)}</td>
+        <td>${s.scan_count}</td>
+        <td>${s.done_count}</td>
+        <td>${formatBytes(s.artifact_bytes)}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadBatchList() {
+  try {
+    const scans = await api('/api/scans');
+    const batches = {};
+    scans.forEach(s => {
+      if (s.batch_id && !batches[s.batch_id]) {
+        batches[s.batch_id] = {id: s.batch_id, count: 0, url: s.url};
+        scans.filter(x => x.batch_id === s.batch_id).forEach(x => batches[s.batch_id].count++);
+      }
+    });
+    const list = Object.values(batches);
+    document.getElementById('batchList').innerHTML = list.length ? list.map(b =>
+      `<div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)">
+        <span><code style="font-size:.72rem">${b.id}</code> <span style="color:var(--text3)">(${b.count} scans)</span></span>
+        <button class="btn btn-danger btn-sm" onclick="deleteBatch('${b.id}')">Delete</button>
+      </div>`
+    ).join('') : '<div style="color:var(--text3)">No batch scans found.</div>';
+  } catch(e) { console.error(e); }
+}
+
+async function deleteBatch(batchId) {
+  const bid = batchId || document.getElementById('batchToDelete').value.trim();
+  if (!bid) return;
+  if (!confirm('Delete ALL scans in this batch? This cannot be undone.')) return;
+  try {
+    const r = await api('/api/scans/batch/'+encodeURIComponent(bid), {method:'DELETE'});
+    alert(`Deleted ${r.deleted} scan(s)`);
+    loadBatchList();
+    loadStorage();
+  } catch(e) { alert(e.message); }
 }
 
 async function addUser() {
@@ -607,6 +1109,284 @@ async function addUser() {
 async function removeUser(id) {
   if (!confirm('Delete this user?')) return;
   try { await api('/api/users/'+id, {method:'DELETE'}); loadUsers(); } catch(e) { alert(e.message); }
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B','KB','MB','GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Settings tabs ──
+let currentSettingsTab = 'apikeys';
+function showSettingsTab(tab) {
+  currentSettingsTab = tab;
+  ['apikeys','webhooks','schedules','teams'].forEach(t => {
+    const el = document.getElementById('settings-'+t);
+    if (!el) return;
+    el.style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    if (btn) btn.className = 'btn ' + (t === tab ? 'btn-primary' : 'btn-ghost') + ' btn-sm';
+  });
+  if (tab === 'apikeys') loadApiKeys();
+  if (tab === 'webhooks') loadWebhooks();
+  if (tab === 'schedules') loadSchedules();
+  if (tab === 'teams') loadTeams();
+}
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  applyAdminNav();
+  if (page === 'admin') loadAdmin();
+  if (page === 'dashboard') loadScans();
+  if (page === 'settings') { showSettingsTab(currentSettingsTab); }
+  if (page === 'config') loadSavedProfiles();
+  if (page === 'compare') loadCompareDropdown();
+}
+
+// ── API Keys ──
+async function loadApiKeys() {
+  try {
+    const keys = await api('/api/keys');
+    document.getElementById('apiKeysTable').innerHTML = keys.length ? keys.map(k => `
+      <tr>
+        <td>${escHtml(k.name)}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${k.created_at ? new Date(k.created_at).toLocaleDateString() : '—'}</td>
+        <td style="font-size:.75rem;color:var(--text3)">${k.last_used ? new Date(k.last_used).toLocaleDateString() : 'Never'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteApiKey(${k.id})">Revoke</button></td>
+      </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text3);font-size:.82rem;text-align:center;padding:1rem">No API keys yet.</td></tr>';
+  } catch(e) { console.error(e); }
+}
+
+async function createApiKey() {
+  const name = document.getElementById('newKeyName').value.trim();
+  if (!name) return;
+  try {
+    const result = await api('/api/keys', {method:'POST', body: JSON.stringify({name})});
+    document.getElementById('newKeyName').value = '';
+    const msg = `API Key created!\n\nName: ${result.name}\nKey: ${result.key}\n\nSave this key — it will not be shown again.`;
+    alert(msg);
+    loadApiKeys();
+  } catch(e) { alert(e.message); }
+}
+
+async function deleteApiKey(id) {
+  if (!confirm('Revoke this API key?')) return;
+  try { await api('/api/keys/'+id, {method:'DELETE'}); loadApiKeys(); } catch(e) { alert(e.message); }
+}
+
+// ── Webhooks ──
+async function loadWebhooks() {
+  try {
+    const whs = await api('/api/webhooks');
+    document.getElementById('webhooksTable').innerHTML = whs.length ? whs.map(w => `
+      <tr>
+        <td>${escHtml(w.name)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(w.url)}">${escHtml(w.url)}</td>
+        <td style="font-size:.72rem;color:var(--text2)">${JSON.parse(w.events||'[]').join(', ')}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteWebhook(${w.id})">Remove</button></td>
+      </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text3);font-size:.82rem;text-align:center;padding:1rem">No webhooks yet.</td></tr>';
+  } catch(e) { console.error(e); }
+}
+
+async function createWebhook() {
+  const name = document.getElementById('whName').value.trim();
+  const url = document.getElementById('whUrl').value.trim();
+  if (!name || !url) return;
+  const events = [...document.querySelectorAll('.wh-event:checked')].map(el => el.value);
+  if (!events.length) { alert('Select at least one event.'); return; }
+  try {
+    await api('/api/webhooks', {method:'POST', body: JSON.stringify({name, url, events})});
+    document.getElementById('whName').value = ''; document.getElementById('whUrl').value = '';
+    document.querySelectorAll('.wh-event').forEach(el => el.checked = false);
+    loadWebhooks();
+  } catch(e) { alert(e.message); }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Remove this webhook?')) return;
+  try { await api('/api/webhooks/'+id, {method:'DELETE'}); loadWebhooks(); } catch(e) { alert(e.message); }
+}
+
+// ── Schedules ──
+async function loadSchedules() {
+  try {
+    const schs = await api('/api/schedules');
+    document.getElementById('schedulesTable').innerHTML = schs.length ? schs.map(s => {
+      const urls = JSON.parse(s.urls||'[]');
+      return `<tr>
+        <td>${escHtml(s.name)}</td>
+        <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${urls.join('\n')}">${urls.length} URL(s)</td>
+        <td style="font-family:monospace;font-size:.8rem">${escHtml(s.cron_expression)}</td>
+        <td><label class="toggle" style="width:32px;height:16px"><input type="checkbox" ${s.enabled?'checked':''} onchange="toggleSchedule(${s.id},this.checked)"><span class="toggle-slider"></span></label></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteSchedule(${s.id})">Delete</button></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" style="color:var(--text3);font-size:.82rem;text-align:center;padding:1rem">No schedules yet.</td></tr>';
+  } catch(e) { console.error(e); }
+}
+
+async function createSchedule() {
+  const name = document.getElementById('schedName').value.trim();
+  const urlsText = document.getElementById('schedUrls').value.trim();
+  const cron = document.getElementById('schedCron').value.trim();
+  if (!name || !urlsText || !cron) return;
+  const urls = urlsText.split('\n').map(u => u.trim()).filter(u => u);
+  if (!urls.length) return;
+  try {
+    await api('/api/schedules', {method:'POST', body: JSON.stringify({name, urls, config: getConfig(), cron_expression: cron})});
+    document.getElementById('schedName').value = ''; document.getElementById('schedUrls').value = '';
+    loadSchedules();
+  } catch(e) { alert(e.message); }
+}
+
+async function toggleSchedule(id, enabled) {
+  try { await api('/api/schedules/'+id+'?enabled='+enabled, {method:'PUT'}); } catch(e) { alert(e.message); }
+}
+
+async function deleteSchedule(id) {
+  if (!confirm('Delete this schedule?')) return;
+  try { await api('/api/schedules/'+id, {method:'DELETE'}); loadSchedules(); } catch(e) { alert(e.message); }
+}
+
+// ── Saved Config Profiles ──
+async function loadSavedProfiles() {
+  try {
+    const profiles = await api('/api/configs');
+    const el = document.getElementById('savedProfiles');
+    if (!el) return;
+    el.innerHTML = profiles.length ? `<table><thead><tr><th>Name</th><th></th></tr></thead><tbody>` +
+      profiles.map(p => `<tr><td>${escHtml(p.name)}</td><td><button class="btn btn-ghost btn-sm" onclick="deleteProfile(${p.id})">Delete</button></td></tr>`).join('') +
+      '</tbody></table>' : '<div style="color:var(--text3);font-size:.82rem">No saved profiles.</div>';
+  } catch(e) { console.error(e); }
+}
+
+async function saveProfile() {
+  const name = document.getElementById('cfgProfileName')?.value?.trim();
+  if (!name) { alert('Enter a profile name.'); return; }
+  try {
+    await api('/api/configs', {method:'POST', body: JSON.stringify({name, config: getConfig()})});
+    document.getElementById('cfgProfileName').value = '';
+    loadSavedProfiles();
+  } catch(e) { alert(e.message); }
+}
+
+async function loadProfile() {
+  try {
+    const profiles = await api('/api/configs');
+    if (!profiles.length) { alert('No saved profiles.'); return; }
+    const selected = profiles[0]; // pick first for now
+    if (!selected) return;
+    const cfg = JSON.parse(selected.config || '{}');
+    // Apply module toggles
+    MODULES.forEach(m => {
+      const el = document.getElementById('toggle-'+m.key);
+      if (el && cfg[m.key+'_enabled'] !== undefined) el.checked = cfg[m.key+'_enabled'];
+    });
+    if (cfg.face_api_url) document.getElementById('cfgFaceUrl').value = cfg.face_api_url;
+    if (cfg.face_api_token !== undefined) document.getElementById('cfgFaceToken').value = cfg.face_api_token;
+    if (cfg.max_pages) document.getElementById('cfgMaxPages').value = cfg.max_pages;
+    // Browsers
+    if (cfg.browsers) {
+      ['chromium','firefox','webkit'].forEach(b => {
+        const el = document.getElementById('brow-'+b);
+        if (el) el.checked = cfg.browsers.includes(b);
+      });
+    }
+    // Blockers
+    if (cfg.blockers) {
+      ['ads','analytics','social','chat'].forEach(type => {
+        const el = document.getElementById('block-'+type);
+        if (el) el.checked = !!cfg.blockers[type];
+      });
+    }
+    alert(`Loaded profile: ${selected.name}`);
+  } catch(e) { alert(e.message); }
+}
+
+async function deleteProfile(id) {
+  if (!confirm('Delete this profile?')) return;
+  try { await api('/api/configs/'+id, {method:'DELETE'}); loadSavedProfiles(); } catch(e) { alert(e.message); }
+}
+
+// ── Teams ──
+async function loadTeams() {
+  try {
+    const teams = await api('/api/teams');
+    const el = document.getElementById('teamsList');
+    if (!el) return;
+    if (!teams.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:.82rem">No teams yet.</div>';
+      return;
+    }
+    el.innerHTML = teams.map(t => `
+      <div style="background:var(--surface2);border-radius:8px;padding:1rem;margin-bottom:.75rem;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+          <div style="width:32px;height:32px;border-radius:50%;background:${escHtml(t.primary_color||'#7c6cf0')};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.9rem">${escHtml(t.name).substring(0,2).toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600;font-size:.9rem">${escHtml(t.name)}</div>
+            <div style="font-size:.72rem;color:var(--text3)">${t.custom_domain ? 'Custom domain: ' + escHtml(t.custom_domain) : 'No custom domain'}</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:.5rem">
+            <button class="btn btn-ghost btn-sm" onclick="editTeam(${t.id})">Edit</button>
+            ${t.member_role === 'owner' ? `<button class="btn btn-danger btn-sm" onclick="deleteTeam(${t.id})">Delete</button>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:.4rem"><div style="width:16px;height:16px;border-radius:3px;background:${escHtml(t.primary_color||'#7c6cf0')}"></div><span style="font-size:.75rem;color:var(--text2)">Primary</span></div>
+          <div style="display:flex;align-items:center;gap:.4rem"><div style="width:16px;height:16px;border-radius:3px;background:${escHtml(t.secondary_color||'#b4a8ff')}"></div><span style="font-size:.75rem;color:var(--text2)">Secondary</span></div>
+          ${t.logo_url ? `<a href="${escHtml(t.logo_url)}" target="_blank" style="font-size:.75rem">Logo</a>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+let editingTeamId = null;
+
+async function editTeam(id) {
+  try {
+    const teams = await api('/api/teams');
+    const t = teams.find(t => t.id === id);
+    if (!t) return;
+    editingTeamId = id;
+    const name = prompt('Team name:', t.name);
+    if (name === null) return;
+    const logo_url = prompt('Logo URL:', t.logo_url || '');
+    if (logo_url === null) return;
+    const primary_color = prompt('Primary color (#hex):', t.primary_color || '#7c6cf0');
+    if (primary_color === null) return;
+    const secondary_color = prompt('Secondary color (#hex):', t.secondary_color || '#b4a8ff');
+    if (secondary_color === null) return;
+    const custom_domain = prompt('Custom domain:', t.custom_domain || '');
+    if (custom_domain === null) return;
+    await api('/api/teams/'+id, {method:'PUT', body: JSON.stringify({name, logo_url, primary_color, secondary_color, custom_domain})});
+    editingTeamId = null;
+    loadTeams();
+  } catch(e) { alert(e.message); }
+}
+
+async function createTeam() {
+  const name = document.getElementById('newTeamName')?.value?.trim();
+  if (!name) { alert('Enter a team name.'); return; }
+  try {
+    await api('/api/teams', {method:'POST', body: JSON.stringify({name})});
+    document.getElementById('newTeamName').value = '';
+    loadTeams();
+  } catch(e) { alert(e.message); }
+}
+
+async function deleteTeam(id) {
+  if (!confirm('Delete this team and remove all members?')) return;
+  try { await api('/api/teams/'+id, {method:'DELETE'}); loadTeams(); } catch(e) { alert(e.message); }
 }
 
 init();

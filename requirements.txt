@@ -3,4 +3,7 @@ uvicorn==0.34.0
 python-multipart==0.0.20
 httpx==0.28.1
 playwright==1.49.1
+undetected-playwright==0.3.0
 pydantic==2.10.4
+croniter==2.0.5
+reportlab==4.2.5
