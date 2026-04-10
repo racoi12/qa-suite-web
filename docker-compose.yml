@@ -1,3 +1,9 @@
+version: "3.9"
+
+# QA Suite — qa.uat.argitic.com
+# Authelia: admins only
+# Deploy: sudo docker compose -p qa-suite up -d
+
 services:
   qa:
     build: .
@@ -14,12 +20,13 @@ services:
       - web
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=web"
       - "traefik.http.routers.qa.entrypoints=https"
       - "traefik.http.routers.qa.rule=Host(`qa.uat.argitic.com`)"
       - "traefik.http.routers.qa.tls=true"
       - "traefik.http.routers.qa.tls.certresolver=cloudflare"
       - "traefik.http.services.qa.loadbalancer.server.port=8000"
-      - "traefik.docker.network=web"
+      - "traefik.http.routers.qa.middlewares=authelia@docker"
 
 volumes:
   qa-data:
